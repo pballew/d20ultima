@@ -1,0 +1,29 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Run Godot Game",
+            "type": "shell",
+            "command": "pwsh -File ./run_game.ps1",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": true
+            },
+            "problemMatcher": {
+                "owner": "godot",
+                "fileLocation": ["absolute"],
+                "pattern": {
+                    "regexp": "^ERROR: (.*)\\s+at: .*\\((.*):(\\d+)\\)$",
+                    "message": 1,
+                    "file": 2,
+                    "line": 3
+                }
+            }
+        }
+    ]
+}

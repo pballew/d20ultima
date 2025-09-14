@@ -1,0 +1,75 @@
+[gd_scene load_steps=3 format=3 uid="uid://main_menu"]
+
+[ext_resource type="Script" path="res://scripts/MainMenu.gd" id="1_main_menu"]
+[ext_resource type="PackedScene" uid="uid://character_creation" path="res://scenes/CharacterCreation.tscn" id="2_char_creation"]
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1_main_menu")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.05, 0.05, 0.1, 1)
+
+[node name="SpriteDisplay" type="ScrollContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 80.0
+horizontal_scroll_enabled = true
+vertical_scroll_enabled = false
+
+[node name="SpriteContainer" type="HBoxContainer" parent="SpriteDisplay"]
+layout_mode = 2
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 80.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer"]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+text = "Ultima-Style D20 RPG"
+horizontal_alignment = 1
+
+[node name="Spacer1" type="Control" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 50)
+
+[node name="ContinueButton" type="Button" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+text = "Continue"
+custom_minimum_size = Vector2(200, 0)
+
+[node name="NewCharacterButton" type="Button" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+text = "Create New Character"
+custom_minimum_size = Vector2(200, 0)
+
+[node name="LoadCharacterButton" type="Button" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+text = "Load Existing Character"
+custom_minimum_size = Vector2(200, 0)
+
+[node name="Spacer2" type="Control" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 20)
+
+[node name="QuitButton" type="Button" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+text = "Quit Game"
+custom_minimum_size = Vector2(200, 0)
+
+[node name="CharacterCreation" parent="." instance=ExtResource("2_char_creation")]
+visible = false
