@@ -12,6 +12,7 @@ var camera: Camera2D
 var edge_threshold: int = 5  # Number of tiles from edge to start scrolling (was 8)
 var frames_to_ignore_input: int = 0
 var camera_target: Vector2
+var initial_setup_complete: bool = false  # Flag to delay world bounds checking
 
 signal movement_finished
 signal encounter_started
@@ -25,6 +26,15 @@ func _ready():
 	if camera:
 		camera_target = camera.global_position
 	create_player_sprite()
+	
+	# Delay initial setup completion to allow proper camera positioning
+	await get_tree().create_timer(0.1).timeout
+	initial_setup_complete = true
+
+func set_camera_target(target_pos: Vector2):
+	camera_target = target_pos
+	if camera:
+		camera.global_position = target_pos
 
 func load_from_character_data(char_data: CharacterData):
 	character_name = char_data.character_name
@@ -212,6 +222,12 @@ func update_camera_position():
 	if not camera:
 		return
 	
+	# Skip world bounds checking for the first few frames to allow proper initial positioning
+	if not initial_setup_complete:
+		# Just keep camera on player during initial setup
+		camera_target = global_position
+		return
+	
 	# Get the viewport size in world coordinates
 	var viewport = get_viewport()
 	if not viewport:
@@ -227,24 +243,34 @@ func update_camera_position():
 	# Current player and camera positions
 	var player_pos = global_position
 
-	# Acquire terrain bounds
+	# Acquire terrain bounds - use conservative bounds instead of full world
 	var terrain = get_parent().get_node_or_null("EnhancedTerrain")
 	if not terrain:
 		terrain = get_tree().get_root().find_child("EnhancedTerrain", true, false)
 	if not terrain or not terrain.has_method("get_used_rect"):
 		return
 
-	var world_bounds = terrain.get_used_rect()
-	if world_bounds.size == Vector2i.ZERO:
-		return
-
-	var world_pos = world_bounds.position * tile_size
-	var world_size = world_bounds.size * tile_size
+	# Get conservative bounds around current player position instead of full world
+	var player_section = terrain.get_section_id_from_world_pos(player_pos) if terrain.has_method("get_section_id_from_world_pos") else Vector2i(0, 0)
+	
+	# Create bounds that include current section and immediate neighbors
+	var conservative_bounds = Rect2i(
+		Vector2i((player_section.x - 1) * 50 - 25, (player_section.y - 1) * 40 - 20),  # Position
+		Vector2i(150, 120)  # Size: 3x3 sections
+	)
+	
+	var world_pos = Vector2(conservative_bounds.position) * tile_size
+	var world_size = Vector2(conservative_bounds.size) * tile_size
 	var half_viewport = world_viewport_size * 0.5
 
 	# If world smaller than viewport, just center on world center
 	if world_size.x <= world_viewport_size.x and world_size.y <= world_viewport_size.y:
 		camera.global_position = world_pos + world_size * 0.5
+		return
+	
+	# If this is the first time setting up, don't jump to world center, stay near player
+	if not initial_setup_complete and camera_target == null:
+		camera_target = player_pos
 		return
 
 	# Limits (clamped so camera never shows beyond world edges)
@@ -286,11 +312,20 @@ func handle_input():
 		start_camping()
 		return
 	
-	# Check for sprite generation (F12 key)
-	if Input.is_action_just_pressed("ui_text_completion_accept") or Input.is_key_pressed(KEY_F12):
-		generate_all_sprites()
-		return
-	
+		# Check for sprite generation (F12 key)
+		if Input.is_action_just_pressed("ui_text_completion_accept") or Input.is_key_pressed(KEY_F12):
+			generate_all_sprites()
+			return
+		
+		# Check for map debug info (F11 key)
+		if Input.is_key_pressed(KEY_F11):
+			var terrain = get_parent().get_node("EnhancedTerrain")
+			if terrain and terrain.has_method("print_map_debug_info"):
+				terrain.print_map_debug_info()
+				if terrain.has_method("test_coordinate_conversions"):
+					terrain.test_coordinate_conversions()
+			return
+			
 	var input_vector = Vector2.ZERO
 	
 	if Input.is_action_just_pressed("move_up"):
@@ -308,6 +343,10 @@ func handle_input():
 		# Check if the new position is walkable
 		var terrain = get_parent().get_node("EnhancedTerrain")
 		if terrain and terrain.has_method("is_walkable"):
+			# Ensure needed map sections are loaded around new position
+			if terrain.has_method("ensure_sections_loaded_around_position"):
+				terrain.ensure_sections_loaded_around_position(new_position)
+			
 			if terrain.is_walkable(new_position):
 				move_to_tile(new_position)
 				

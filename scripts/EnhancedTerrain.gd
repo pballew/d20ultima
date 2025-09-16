@@ -1,9 +1,10 @@
+class_name EnhancedTerrain
 extends Node2D
 
 # Enhanced terrain system with pixel art and animations
 const TILE_SIZE = 32
-const MAP_WIDTH = 50
-const MAP_HEIGHT = 40
+const MAP_WIDTH = 25  # Reduced from 50 to make sections more visible
+const MAP_HEIGHT = 20  # Reduced from 40 to make sections more visible
 
 # Terrain types
 enum TerrainType { 
@@ -12,6 +13,25 @@ enum TerrainType {
 	FOREST, HILLS, BEACH, SWAMP
 }
 
+# Map section structure for multi-map support
+class MapSection:
+	var section_id: Vector2i  # Grid coordinate of this map section (0,0 is original, 0,-1 is north)
+	var terrain_data: Dictionary = {}  # Local terrain data for this section
+	var sprites: Array = []  # Visual sprites for this section
+	var animated_waters: Array = []  # Animated water tiles in this section
+	
+	func _init(id: Vector2i):
+		section_id = id
+
+# Multi-map system variables
+var map_sections: Dictionary = {}  # Key: Vector2i section_id, Value: MapSection
+var current_sections: Array[Vector2i] = []  # Currently loaded sections
+
+# Map data persistence
+var map_data_manager
+var current_world_seed: int
+
+# Legacy single-map data (will be migrated to map_sections)
 var terrain_data: Dictionary = {}
 var noise: FastNoiseLite
 var moisture_noise: FastNoiseLite
@@ -21,40 +41,169 @@ var elevation_noise: FastNoiseLite
 var animated_waters: Array = []
 
 func _ready():
+	# Hide terrain during generation to prevent visual "loading" effect
+	visible = false
+	
+	# Initialize map data manager
+	var MapDataManagerClass = load("res://scripts/MapDataManager.gd")
+	map_data_manager = MapDataManagerClass.new()
+	current_world_seed = randi()
+	
 	# Initialize multiple noise layers for complex terrain
 	noise = FastNoiseLite.new()
-	noise.seed = randi()
+	noise.seed = current_world_seed
 	noise.frequency = 0.1
 	noise.noise_type = FastNoiseLite.TYPE_PERLIN
 	
 	moisture_noise = FastNoiseLite.new()
-	moisture_noise.seed = randi() + 1000
+	moisture_noise.seed = current_world_seed + 1000
 	moisture_noise.frequency = 0.05
 	moisture_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
 	
 	elevation_noise = FastNoiseLite.new()
-	elevation_noise.seed = randi() + 2000
+	elevation_noise.seed = current_world_seed + 2000
 	elevation_noise.frequency = 0.08
 	elevation_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	
-	generate_enhanced_terrain()
-	ensure_safe_spawn_area()
+	# Initialize multi-map system
+	initialize_multi_map_system()
+	
+	# Generate initial map sections to cover the spawn area and adjacent areas
+	print("Starting terrain generation...")
+	
+	# Generate all terrain data first (no visuals)
+	# With 25x20 sections, we need more sections to cover the screen area
+	var sections_to_generate = [
+		# Center 2x2 grid around spawn
+		Vector2i(0, 0),   Vector2i(1, 0),   # Bottom row
+		Vector2i(0, -1),  Vector2i(1, -1),  # Top row
+		# Extended coverage for full screen area
+		Vector2i(-1, 0),  Vector2i(-1, -1), # Left column
+		Vector2i(2, 0),   Vector2i(2, -1),  # Right column  
+		Vector2i(0, 1),   Vector2i(1, 1),   # Bottom extension
+	]
+	
+	# First pass: Generate all terrain data without creating sprites
+	for section_id in sections_to_generate:
+		generate_map_section_data_only(section_id)
+	
+	# Second pass: Create all sprites at once
+	for section_id in sections_to_generate:
+		create_sprites_for_section(section_id)
+	
+	print("Generated all initial sections")
+	
+	# Don't call ensure_safe_spawn_area here - it generates extra sections
+	# The spawn area should already be walkable from the generated sections
+	
+	# Debug output and visual markers
+	print_map_debug_info()
+	test_coordinate_conversions()
+	draw_section_boundaries()
+	
+	# Show terrain now that generation is complete
+	visible = true
+	print("Terrain generation complete - now visible")
+
+# Map data management functions
+func get_map_save_statistics() -> Dictionary:
+	return map_data_manager.get_save_statistics()
+
+func clear_all_saved_maps():
+	map_data_manager.clear_all_sections()
+	print("Cleared all saved map data")
+
+func get_saved_sections() -> Array[Vector2i]:
+	return map_data_manager.get_saved_sections()
+
+func force_save_current_sections():
+	for section_id in current_sections:
+		save_section_data(section_id)
+	print("Force saved ", current_sections.size(), " sections")
+
+func reload_section_from_disk(section_id: Vector2i):
+	if map_sections.has(section_id):
+		# Remove existing section
+		var section = map_sections[section_id]
+		
+		# Clear sprites for this section
+		for child in get_children():
+			var child_section_id = get_section_id_from_world_pos(child.position)
+			if child_section_id == section_id:
+				child.queue_free()
+		
+		# Remove from memory
+		map_sections.erase(section_id)
+		current_sections.erase(section_id)
+	
+	# Regenerate from disk
+	generate_map_section_data_only(section_id)
+	create_sprites_for_section(section_id)
+
+# Debug function to manually load sections around a point
+func debug_load_sections_around(world_pos: Vector2, radius: int = 1):
+	var center_section = get_section_id_from_world_pos(world_pos)
+	print("Loading sections around ", center_section, " with radius ", radius)
+	
+	for x in range(-radius, radius + 1):
+		for y in range(-radius, radius + 1):
+			var section_id = Vector2i(center_section.x + x, center_section.y + y)
+			if not map_sections.has(section_id):
+				generate_map_section_data_only(section_id)
+				create_sprites_for_section(section_id)
+				print("  Loaded section: ", section_id)
+
+# Console command for debugging
+func _input(event):
+	if event is InputEventKey and event.pressed:
+		if event.keycode == KEY_F1:
+			var player = get_node("../Player")
+			if player:
+				debug_load_sections_around(player.global_position, 2)
+		elif event.keycode == KEY_F2:
+			print("=== Map Data Statistics ===")
+			print("Sections in memory: ", map_sections.size())
+			print("Current sections: ", current_sections.size())
+			var stats = get_map_save_statistics()
+			print("Save statistics: ", stats)
+		elif event.keycode == KEY_F3:
+			clear_all_saved_maps()
+			# Also clear in-memory sections and regenerate
+			map_sections.clear()
+			current_sections.clear()
+			for child in get_children():
+				child.queue_free()
+			var player = get_node("../Player")
+			if player:
+				debug_load_sections_around(player.global_position, 2)
 
 func ensure_safe_spawn_area():
-	# Ensure there's always a 5x5 area of walkable terrain around world center
+	# Ensure there's always a 5x5 area of walkable terrain around world center (0,0)
 	var spawn_radius = 3  # 7x7 area around center
 	for x in range(-spawn_radius, spawn_radius + 1):
 		for y in range(-spawn_radius, spawn_radius + 1):
-			var tile_pos = Vector2i(x, y)
+			var global_tile_pos = Vector2i(x, y)
 			
 			# Create a mix of grass and dirt in spawn area
 			var spawn_terrain = TerrainType.GRASS if (x + y) % 2 == 0 else TerrainType.DIRT
 			
-			# Force walkable terrain in spawn area
-			terrain_data[tile_pos] = spawn_terrain
+			# Update terrain in both global terrain_data and appropriate section
+			terrain_data[global_tile_pos] = spawn_terrain
+			
+			# Update the terrain in the appropriate map section
+			var coord_info = global_tile_to_section_and_local(global_tile_pos)
+			var section_id = coord_info["section_id"]
+			var local_pos = coord_info["local_pos"]
+			
+			# Ensure the section exists
+			if not map_sections.has(section_id):
+				generate_map_section(section_id)
+			
+			# Update section terrain data
+			map_sections[section_id].terrain_data[local_pos] = spawn_terrain
 			
 			# Remove any existing sprite at this position
-			var world_pos = Vector2(tile_pos.x * TILE_SIZE, tile_pos.y * TILE_SIZE)
+			var world_pos = Vector2(global_tile_pos.x * TILE_SIZE, global_tile_pos.y * TILE_SIZE)
 			for child in get_children():
 				if child.position == world_pos:
 					child.queue_free()
@@ -62,25 +211,311 @@ func ensure_safe_spawn_area():
 			# Create new walkable terrain sprite
 			create_basic_terrain(world_pos, spawn_terrain)
 
-func generate_enhanced_terrain():
-	# Create terrain with elevation and moisture consideration
+func ensure_safe_spawn_area_minimal():
+	# Ensure there's always walkable terrain around world center (0,0) WITHOUT generating extra sections
+	var spawn_radius = 2  # Smaller 5x5 area around center to stay within original section
+	for x in range(-spawn_radius, spawn_radius + 1):
+		for y in range(-spawn_radius, spawn_radius + 1):
+			var global_tile_pos = Vector2i(x, y)
+			
+			# Create a mix of grass and dirt in spawn area
+			var spawn_terrain = TerrainType.GRASS if (x + y) % 2 == 0 else TerrainType.DIRT
+			
+			# Only update if the section already exists (don't generate new ones)
+			var coord_info = global_tile_to_section_and_local(global_tile_pos)
+			var section_id = coord_info["section_id"]
+			var local_pos = coord_info["local_pos"]
+			
+			if map_sections.has(section_id):
+				# Update terrain in both global terrain_data and section
+				terrain_data[global_tile_pos] = spawn_terrain
+				map_sections[section_id].terrain_data[local_pos] = spawn_terrain
+				
+				# Remove any existing sprite at this position
+				var world_pos = Vector2(global_tile_pos.x * TILE_SIZE, global_tile_pos.y * TILE_SIZE)
+				for child in get_children():
+					if child.position == world_pos:
+						child.queue_free()
+				
+				# Create new walkable terrain sprite
+				create_basic_terrain(world_pos, spawn_terrain)
+
+# Multi-map system functions
+func initialize_multi_map_system():
+	# Initialize map sections dictionary
+	map_sections.clear()
+	current_sections.clear()
+
+func generate_map_section(section_id: Vector2i):
+	# Don't regenerate if section already exists
+	if map_sections.has(section_id):
+		return
+	
+	print("Generating map section: ", section_id)
+	
+	# Create new map section
+	var section = MapSection.new(section_id)
+	map_sections[section_id] = section
+	current_sections.append(section_id)
+	
+	# Calculate global offset for this section
+	var section_offset_x = section_id.x * MAP_WIDTH
+	var section_offset_y = section_id.y * MAP_HEIGHT
+	
+	# First pass: Generate all terrain data without visuals
+	var sprites_to_create = []
+	
 	for x in range(MAP_WIDTH):
 		for y in range(MAP_HEIGHT):
-			var world_x = x - MAP_WIDTH/2
-			var world_y = y - MAP_HEIGHT/2
+			# Local coordinates within this section
+			var local_x = x - MAP_WIDTH/2
+			var local_y = y - MAP_HEIGHT/2
 			
-			var elevation = elevation_noise.get_noise_2d(x, y)
-			var moisture = moisture_noise.get_noise_2d(x, y)
-			var base_noise = noise.get_noise_2d(x, y)
+			# Global coordinates (noise sampling coordinates)
+			var global_noise_x = x + section_offset_x
+			var global_noise_y = y + section_offset_y
+			
+			# Sample noise using global coordinates for continuity
+			var elevation = elevation_noise.get_noise_2d(global_noise_x, global_noise_y)
+			var moisture = moisture_noise.get_noise_2d(global_noise_x, global_noise_y)
+			var base_noise = noise.get_noise_2d(global_noise_x, global_noise_y)
 			
 			var terrain_type = determine_terrain_type(elevation, moisture, base_noise)
-			var tile_pos = Vector2i(world_x, world_y)
 			
-			# Store terrain data for collision checking
-			terrain_data[tile_pos] = terrain_type
+			# Store in section's local terrain data
+			var local_tile_pos = Vector2i(local_x, local_y)
+			section.terrain_data[local_tile_pos] = terrain_type
 			
-			# Create visual representation
-			create_terrain_sprite(tile_pos, terrain_type)
+			# Also store in global terrain_data for backward compatibility
+			var global_tile_pos = world_to_global_tile(local_tile_pos, section_id)
+			terrain_data[global_tile_pos] = terrain_type
+			
+			# Queue sprite for creation
+			sprites_to_create.append({
+				"local_pos": local_tile_pos,
+				"terrain_type": terrain_type,
+				"section_id": section_id
+			})
+	
+	# Second pass: Create all visual sprites at once
+	for sprite_data in sprites_to_create:
+		create_terrain_sprite_for_section(sprite_data.local_pos, sprite_data.terrain_type, sprite_data.section_id)
+
+func world_to_global_tile(local_tile_pos: Vector2i, section_id: Vector2i) -> Vector2i:
+	# Convert local tile position within a section to global tile coordinates
+	var section_base_x = section_id.x * MAP_WIDTH - MAP_WIDTH/2
+	var section_base_y = section_id.y * MAP_HEIGHT - MAP_HEIGHT/2
+	return Vector2i(
+		local_tile_pos.x + section_base_x,
+		local_tile_pos.y + section_base_y
+	)
+
+func global_tile_to_section_and_local(global_tile_pos: Vector2i) -> Dictionary:
+	# Convert global tile coordinates to section_id and local coordinates
+	# Each section covers tiles from -MAP_WIDTH/2 to +MAP_WIDTH/2 (exclusive) in local coordinates
+	# Section (0,0) covers global tiles -25 to +24 in both X and Y
+	
+	# Determine which section this global tile belongs to
+	var section_x = 0
+	var section_y = 0
+	
+	# Handle negative coordinates properly
+	if global_tile_pos.x >= 0:
+		section_x = int((global_tile_pos.x + MAP_WIDTH/2) / MAP_WIDTH)
+	else:
+		section_x = int((global_tile_pos.x + MAP_WIDTH/2 + 1) / MAP_WIDTH) - 1
+	
+	if global_tile_pos.y >= 0:
+		section_y = int((global_tile_pos.y + MAP_HEIGHT/2) / MAP_HEIGHT)
+	else:
+		section_y = int((global_tile_pos.y + MAP_HEIGHT/2 + 1) / MAP_HEIGHT) - 1
+		
+	var section_id = Vector2i(section_x, section_y)
+	
+	# Calculate local position within the section
+	var section_base_x = section_x * MAP_WIDTH - MAP_WIDTH/2
+	var section_base_y = section_y * MAP_HEIGHT - MAP_HEIGHT/2
+	var local_x = global_tile_pos.x - section_base_x
+	var local_y = global_tile_pos.y - section_base_y
+	var local_pos = Vector2i(local_x, local_y)
+	
+	return {"section_id": section_id, "local_pos": local_pos}
+
+func generate_map_section_data_only(section_id: Vector2i):
+	# Generate terrain data without creating sprites (faster)
+	if map_sections.has(section_id):
+		return
+	
+	print("Generating data for section: ", section_id)
+	
+	# Try to load existing section data first
+	var saved_data = map_data_manager.load_section(section_id)
+	
+	# Create new map section
+	var section = MapSection.new(section_id)
+	map_sections[section_id] = section
+	current_sections.append(section_id)
+	
+	if saved_data and saved_data.terrain_data.size() > 0:
+		# Use saved data
+		print("Loaded existing data for section: ", section_id)
+		section.terrain_data = saved_data.terrain_data.duplicate()
+		
+		# Update global terrain_data for backward compatibility
+		for local_pos in section.terrain_data.keys():
+			var global_tile_pos = world_to_global_tile(local_pos, section_id)
+			terrain_data[global_tile_pos] = section.terrain_data[local_pos]
+		return
+	
+	# Calculate global offset for this section
+	var section_offset_x = section_id.x * MAP_WIDTH
+	var section_offset_y = section_id.y * MAP_HEIGHT
+	
+	# Generate terrain data only
+	for x in range(MAP_WIDTH):
+		for y in range(MAP_HEIGHT):
+			# Local coordinates within this section
+			var local_x = x - MAP_WIDTH/2
+			var local_y = y - MAP_HEIGHT/2
+			
+			# Global coordinates (noise sampling coordinates)
+			var global_noise_x = x + section_offset_x
+			var global_noise_y = y + section_offset_y
+			
+			# Sample noise using global coordinates for continuity
+			var elevation = elevation_noise.get_noise_2d(global_noise_x, global_noise_y)
+			var moisture = moisture_noise.get_noise_2d(global_noise_x, global_noise_y)
+			var base_noise = noise.get_noise_2d(global_noise_x, global_noise_y)
+			
+			var terrain_type = determine_terrain_type(elevation, moisture, base_noise)
+			
+			# Store in section's local terrain data
+			var local_tile_pos = Vector2i(local_x, local_y)
+			section.terrain_data[local_tile_pos] = terrain_type
+			
+			# Also store in global terrain_data for backward compatibility
+			var global_tile_pos = world_to_global_tile(local_tile_pos, section_id)
+			terrain_data[global_tile_pos] = terrain_type
+	
+	# Save the generated section data to file
+	save_section_data(section_id)
+
+func save_section_data(section_id: Vector2i):
+	if not map_sections.has(section_id):
+		return
+	
+	var section = map_sections[section_id]
+	var section_data = map_data_manager.create_section_data_from_terrain(
+		section_id, 
+		section.terrain_data, 
+		current_world_seed
+	)
+	map_data_manager.save_section(section_data)
+
+func create_sprites_for_section(section_id: Vector2i):
+	# Create all sprites for a section at once
+	if not map_sections.has(section_id):
+		return
+		
+	print("Creating sprites for section: ", section_id)
+	var section = map_sections[section_id]
+	
+	# Create all sprites for this section
+	for local_pos in section.terrain_data.keys():
+		var terrain_type = section.terrain_data[local_pos]
+		create_terrain_sprite_for_section(local_pos, terrain_type, section_id)
+
+func create_terrain_sprite_for_section(local_tile_pos: Vector2i, terrain_type: int, section_id: Vector2i):
+	# Calculate world position for sprite
+	var global_tile_pos = world_to_global_tile(local_tile_pos, section_id)
+	var world_pos = Vector2(global_tile_pos.x * TILE_SIZE, global_tile_pos.y * TILE_SIZE)
+	
+	# Create sprite using existing terrain sprite creation logic
+	create_terrain_sprite(global_tile_pos, terrain_type)
+
+# Function to get section ID from world position
+func get_section_id_from_world_pos(world_pos: Vector2) -> Vector2i:
+	var tile_pos = Vector2i(int(world_pos.x / TILE_SIZE), int(world_pos.y / TILE_SIZE))
+	var coord_info = global_tile_to_section_and_local(tile_pos)
+	return coord_info["section_id"]
+
+# Function to ensure needed sections are loaded around a position
+func ensure_sections_loaded_around_position(world_pos: Vector2, radius: int = 1):
+	var center_section = get_section_id_from_world_pos(world_pos)
+	
+	# Load sections in a grid around the center section
+	for x in range(-radius, radius + 1):
+		for y in range(-radius, radius + 1):
+			var section_id = center_section + Vector2i(x, y)
+			if not map_sections.has(section_id):
+				generate_map_section(section_id)
+
+# Debug function to print map information
+func print_map_debug_info():
+	print("=== Multi-Map Debug Info ===")
+	print("Total sections loaded: ", map_sections.size())
+	print("Sections: ", map_sections.keys())
+	var bounds = get_used_rect()
+	print("World bounds (tiles): ", bounds)
+	print("World bounds (pixels): ", Vector2(bounds.position) * TILE_SIZE, " to ", Vector2(bounds.position + bounds.size) * TILE_SIZE)
+	print("=============================")
+
+# Debug function to draw section boundaries (call this after generation)
+func draw_section_boundaries():
+	for section_id in map_sections.keys():
+		# Calculate section boundaries in world coordinates
+		var section_min_tile = Vector2i(section_id.x * MAP_WIDTH - MAP_WIDTH/2, section_id.y * MAP_HEIGHT - MAP_HEIGHT/2)
+		var section_max_tile = Vector2i((section_id.x + 1) * MAP_WIDTH - MAP_WIDTH/2 - 1, (section_id.y + 1) * MAP_HEIGHT - MAP_HEIGHT/2 - 1)
+		
+		# Create boundary markers (small colored squares at corners)
+		create_section_boundary_marker(Vector2(section_min_tile.x * TILE_SIZE, section_min_tile.y * TILE_SIZE), section_id)
+		create_section_boundary_marker(Vector2(section_max_tile.x * TILE_SIZE, section_min_tile.y * TILE_SIZE), section_id)
+		create_section_boundary_marker(Vector2(section_min_tile.x * TILE_SIZE, section_max_tile.y * TILE_SIZE), section_id)
+		create_section_boundary_marker(Vector2(section_max_tile.x * TILE_SIZE, section_max_tile.y * TILE_SIZE), section_id)
+
+func create_section_boundary_marker(world_pos: Vector2, section_id: Vector2i):
+	var marker = ColorRect.new()
+	marker.size = Vector2(16, 16)  # Larger markers for better visibility
+	marker.position = world_pos - Vector2(8, 8)  # Center the marker
+	# Color-code by section position for easy identification
+	var color = Color.WHITE
+	if section_id.x < 0: color.r = 1.0  # Red tint for negative X
+	if section_id.y < 0: color.b = 1.0  # Blue tint for negative Y  
+	if section_id.x > 0: color.g = 1.0  # Green tint for positive X
+	marker.color = color
+	marker.z_index = 100  # Draw on top
+	add_child(marker)
+
+# Test coordinate conversion functions
+func test_coordinate_conversions():
+	print("=== Testing Coordinate Conversions ===")
+	
+	# Test cases: tile positions that should be in different sections
+	var test_cases = [
+		Vector2i(0, 0),    # Center of original section (0,0)
+		Vector2i(0, -20),  # Center of northern section (0,-1) 
+		Vector2i(0, -21),  # Just into northern section (0,-1)
+		Vector2i(0, -19),  # Just at edge of original section
+		Vector2i(-25, -20), # Far corner 
+		Vector2i(25, -40)   # Another far corner
+	]
+	
+	for tile_pos in test_cases:
+		var coord_info = global_tile_to_section_and_local(tile_pos)
+		var section_id = coord_info["section_id"]
+		var local_pos = coord_info["local_pos"]
+		var reconstructed = world_to_global_tile(local_pos, section_id)
+		
+		print("Tile ", tile_pos, " -> Section ", section_id, " Local ", local_pos, " -> Reconstructed ", reconstructed)
+		if reconstructed != tile_pos:
+			print("ERROR: Coordinate conversion mismatch!")
+	
+	print("=== End Coordinate Tests ===")
+
+func generate_enhanced_terrain():
+	# Legacy function - terrain generation now handled by generate_map_section()
+	# This function is kept for backward compatibility but does nothing
+	print("Note: generate_enhanced_terrain() is deprecated - using multi-map system")
 
 func determine_terrain_type(elevation: float, moisture: float, base_noise: float) -> int:
 	# Ocean and lakes (very low elevation)
@@ -484,16 +919,41 @@ func is_walkable(world_pos: Vector2) -> bool:
 
 # Provide a TileMap-like used rect (in tile coordinates) so camera code can compute world bounds
 func get_used_rect() -> Rect2i:
-	if terrain_data.is_empty():
-		return Rect2i(0, 0, 0, 0)
-	var min_x = 999999
-	var max_x = -999999
-	var min_y = 999999
-	var max_y = -999999
-	for key in terrain_data.keys():
-		if key.x < min_x: min_x = key.x
-		if key.x > max_x: max_x = key.x
-		if key.y < min_y: min_y = key.y
-		if key.y > max_y: max_y = key.y
-	# width/height are inclusive tile span, so add 1
-	return Rect2i(Vector2i(min_x, min_y), Vector2i(max_x - min_x + 1, max_y - min_y + 1))
+	# Calculate bounds based on loaded map sections for multi-map support
+	if map_sections.is_empty():
+		# Fallback to legacy terrain_data if no sections exist
+		if terrain_data.is_empty():
+			return Rect2i(0, 0, 0, 0)
+		var min_x = 999999
+		var max_x = -999999
+		var min_y = 999999
+		var max_y = -999999
+		for key in terrain_data.keys():
+			if key.x < min_x: min_x = key.x
+			if key.x > max_x: max_x = key.x
+			if key.y < min_y: min_y = key.y
+			if key.y > max_y: max_y = key.y
+		return Rect2i(Vector2i(min_x, min_y), Vector2i(max_x - min_x + 1, max_y - min_y + 1))
+	
+	# Calculate bounds from all loaded map sections
+	var min_section_x = 999999
+	var max_section_x = -999999
+	var min_section_y = 999999
+	var max_section_y = -999999
+	
+	for section_id in map_sections.keys():
+		if section_id.x < min_section_x: min_section_x = section_id.x
+		if section_id.x > max_section_x: max_section_x = section_id.x
+		if section_id.y < min_section_y: min_section_y = section_id.y
+		if section_id.y > max_section_y: max_section_y = section_id.y
+	
+	# Convert section bounds to tile bounds
+	var min_tile_x = min_section_x * MAP_WIDTH - MAP_WIDTH/2
+	var max_tile_x = (max_section_x + 1) * MAP_WIDTH - MAP_WIDTH/2 - 1
+	var min_tile_y = min_section_y * MAP_HEIGHT - MAP_HEIGHT/2
+	var max_tile_y = (max_section_y + 1) * MAP_HEIGHT - MAP_HEIGHT/2 - 1
+	
+	var width = max_tile_x - min_tile_x + 1
+	var height = max_tile_y - min_tile_y + 1
+	
+	return Rect2i(Vector2i(min_tile_x, min_tile_y), Vector2i(width, height))

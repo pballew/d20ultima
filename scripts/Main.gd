@@ -10,21 +10,39 @@ const TILE_SIZE = 32  # Match this with EnhancedTerrain.TILE_SIZE
 @onready var camera = $Camera2D
 
 var starting_position: Vector2  # Store player's starting position for respawn
+var debug_ui_scene = preload("res://scenes/MapDataDebugUI.tscn")
 
 func _ready():
+	# Add to group for easy finding
+	add_to_group("main")
+	
 	# Connect signals
 	player.encounter_started.connect(_on_encounter_started)
 	player.camping_started.connect(_on_camping_started)
 	combat_manager.combat_finished.connect(_on_combat_finished)
 
+	# Wait for terrain to be fully generated before positioning camera
+	await get_tree().process_frame
+	
 	# Ensure player starts on walkable terrain
 	ensure_player_safe_starting_position()
 
 	# Store the starting position for respawn
 	starting_position = player.global_position
 
-	# Initialize camera position to player position
+	# Now set camera position after terrain is ready
 	camera.global_position = player.global_position
+	
+	# Add debug UI
+	var debug_ui = debug_ui_scene.instantiate()
+	add_child(debug_ui)
+	
+	# Set player camera target to prevent bounds constraints
+	if player.has_method("set_camera_target"):
+		player.set_camera_target(player.global_position)
+	
+	print("Camera positioned at: ", camera.global_position)
+	print("Player position: ", player.global_position)
 
 	# Setup combat UI
 	combat_ui.setup_combat_ui(player, combat_manager)
