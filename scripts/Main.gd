@@ -6,11 +6,14 @@ const TILE_SIZE = 32  # Match this with EnhancedTerrain.TILE_SIZE
 @onready var combat_manager = $CombatManager
 @onready var combat_ui = $UI/CombatUI
 @onready var player_stats_ui = $UI/PlayerStatsUI
-@onready var terrain = $EnhancedTerrain
+@onready var coordinate_overlay = $UI/CoordinateOverlay
+@onready var terrain = $EnhancedTerrainTileMap
 @onready var camera = $Camera2D
 
 var starting_position: Vector2  # Store player's starting position for respawn
 var debug_ui_scene = preload("res://scenes/MapDataDebugUI.tscn")
+var town_name_label: Label  # Town name display label
+var town_name_timer: Timer  # Timer to hide town name after a few seconds
 
 func _ready():
 	# Add to group for easy finding
@@ -19,6 +22,8 @@ func _ready():
 	# Connect signals
 	player.encounter_started.connect(_on_encounter_started)
 	player.camping_started.connect(_on_camping_started)
+	player.movement_finished.connect(_on_player_moved)
+	player.town_name_display.connect(_on_town_name_display)
 	combat_manager.combat_finished.connect(_on_combat_finished)
 
 	# Wait for terrain to be fully generated before positioning camera
@@ -33,9 +38,9 @@ func _ready():
 	# Now set camera position after terrain is ready
 	camera.global_position = player.global_position
 	
-	# Add debug UI
-	var debug_ui = debug_ui_scene.instantiate()
-	add_child(debug_ui)
+	# Add debug UI (hidden for cleaner gameplay)
+	# var debug_ui = debug_ui_scene.instantiate()
+	# add_child(debug_ui)
 	
 	# Set player camera target to prevent bounds constraints
 	if player.has_method("set_camera_target"):
@@ -43,6 +48,14 @@ func _ready():
 	
 	print("Camera positioned at: ", camera.global_position)
 	print("Player position: ", player.global_position)
+
+	# Initialize coordinate overlay
+	if coordinate_overlay:
+		var initial_pos = Vector2(int(player.global_position.x / TILE_SIZE), int(player.global_position.y / TILE_SIZE))
+		coordinate_overlay.update_coordinates(initial_pos)
+
+	# Create town name display label
+	create_town_name_display()
 
 	# Setup combat UI
 	combat_ui.setup_combat_ui(player, combat_manager)
@@ -94,11 +107,11 @@ func regenerate_map():
 
 func find_nearest_safe_position(pos: Vector2) -> Vector2:
 	if not terrain or not terrain.has_method("is_walkable"):
-		return pos  # No terrain system, use original position
+		return pos + Vector2(TILE_SIZE/2, TILE_SIZE/2)  # Center on tile
 	
 	# Check if current position is already safe
 	if terrain.is_walkable(pos):
-		return pos
+		return pos + Vector2(TILE_SIZE/2, TILE_SIZE/2)  # Center on tile
 		
 	# Search in expanding circles until we find a safe spot
 	for radius in range(1, 10):
@@ -107,10 +120,10 @@ func find_nearest_safe_position(pos: Vector2) -> Vector2:
 				if x*x + y*y <= radius*radius:  # Check in a circular pattern
 					var check_pos = pos + Vector2(x * TILE_SIZE, y * TILE_SIZE)
 					if terrain.is_walkable(check_pos):
-						return check_pos
+						return check_pos + Vector2(TILE_SIZE/2, TILE_SIZE/2)  # Center on tile
 	
-	# If no safe spot found, return center of map
-	return Vector2.ZERO
+	# If no safe spot found, return center of map (centered on tile)
+	return Vector2(TILE_SIZE/2, TILE_SIZE/2)
 
 func ensure_player_safe_starting_position():
 	# Find a safe starting position for the player (walkable terrain)
@@ -135,8 +148,8 @@ func ensure_player_safe_starting_position():
 				if abs(x) == search_size or abs(y) == search_size:
 					var test_pos = center_pos + Vector2(x * TILE_SIZE, y * TILE_SIZE)
 					if terrain.is_walkable(test_pos):
-						player.global_position = test_pos
-						print("Player moved to safe starting position: ", test_pos)
+						player.global_position = test_pos + Vector2(TILE_SIZE/2, TILE_SIZE/2)  # Center on tile
+						print("Player moved to safe starting position: ", player.global_position)
 						return
 	
 	# If still no luck, try a denser pattern around current position
@@ -149,8 +162,8 @@ func ensure_player_safe_starting_position():
 			var test_pos = current_pos + offset
 			
 			if terrain.is_walkable(test_pos):
-				player.global_position = test_pos
-				print("Player moved to safe starting position: ", test_pos)
+				player.global_position = test_pos + Vector2(TILE_SIZE/2, TILE_SIZE/2)  # Center on tile
+				print("Player moved to safe starting position: ", player.global_position)
 				return
 	
 	# Last resort: try specific known-good positions
@@ -167,8 +180,8 @@ func ensure_player_safe_starting_position():
 	
 	for fallback_pos in fallback_positions:
 		if terrain.is_walkable(fallback_pos):
-			player.global_position = fallback_pos
-			print("Player moved to fallback safe position: ", fallback_pos)
+			player.global_position = fallback_pos + Vector2(TILE_SIZE/2, TILE_SIZE/2)  # Center on tile
+			print("Player moved to fallback safe position: ", player.global_position)
 			return
 	
 	print("Warning: Could not find safe starting position for player!")
@@ -819,6 +832,144 @@ func _on_camping_started():
 	print("Setting up campsite...")
 	show_camping_overlay()
 
+func _on_player_moved():
+	# Update coordinate overlay when player moves
+	if coordinate_overlay and player:
+		var player_pos = Vector2(int(player.global_position.x / TILE_SIZE), int(player.global_position.y / TILE_SIZE))
+		coordinate_overlay.update_coordinates(player_pos)
+
+func _on_town_name_display(town_name: String):
+	# Disabled - no longer showing large town name text
+	print("DEBUG: _on_town_name_display called with: ", town_name, " (disabled)")
+	return
+	if town_name_label:
+		# Update the text to include "Welcome to" prefix
+		var display_text = "Welcome to " + town_name
+		town_name_label.text = display_text
+		print("DEBUG: Set label text to: ", town_name_label.text)
+		
+		# Wait one frame for the label to update its size, then center it
+		await get_tree().process_frame
+		
+		# Get the actual text size for proper centering
+		var text_size = town_name_label.get_theme_font("font").get_string_size(
+			display_text, 
+			HORIZONTAL_ALIGNMENT_LEFT, 
+			-1, 
+			town_name_label.get_theme_font_size("font_size")
+		)
+		
+		# Get viewport size for centering
+		var viewport_size = get_viewport().size
+		
+		# Center the label horizontally and position it in the upper third of the screen
+		town_name_label.size = Vector2(text_size.x + 40, text_size.y + 20)  # Add padding
+		town_name_label.position.x = (viewport_size.x - town_name_label.size.x) / 2  # Center horizontally
+		town_name_label.position.y = viewport_size.y / 3  # Upper third of screen
+		
+		print("DEBUG: Text size: ", text_size)
+		print("DEBUG: Label size: ", town_name_label.size)
+		print("DEBUG: Viewport size: ", viewport_size)
+		print("DEBUG: Label positioned at: ", town_name_label.position)
+		
+		town_name_label.show()
+		print("DEBUG: Label shown, visible: ", town_name_label.visible)
+		
+		# Restart the timer to hide the label after 3 seconds
+		if town_name_timer:
+			town_name_timer.start()
+			print("DEBUG: Timer started")
+
+func create_town_name_display():
+	# Create a label to display town names
+	town_name_label = Label.new()
+	town_name_label.text = ""
+	
+	# Style the label for better visibility
+	town_name_label.add_theme_font_size_override("font_size", 28)  # Larger font
+	town_name_label.add_theme_color_override("font_color", Color.WHITE)
+	town_name_label.add_theme_color_override("font_shadow_color", Color.BLACK)
+	town_name_label.add_theme_constant_override("shadow_offset_x", 3)
+	town_name_label.add_theme_constant_override("shadow_offset_y", 3)
+	
+	# Center the text within the label
+	town_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	town_name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	
+	# Add a background for better readability
+	var style_box = StyleBoxFlat.new()
+	style_box.bg_color = Color(0, 0, 0, 0.7)  # Semi-transparent black background
+	style_box.corner_radius_top_left = 10
+	style_box.corner_radius_top_right = 10
+	style_box.corner_radius_bottom_left = 10
+	style_box.corner_radius_bottom_right = 10
+	style_box.border_width_left = 2
+	style_box.border_width_right = 2
+	style_box.border_width_top = 2
+	style_box.border_width_bottom = 2
+	style_box.border_color = Color.YELLOW
+	town_name_label.add_theme_stylebox_override("normal", style_box)
+	
+	# Set initial size and position (will be updated when shown)
+	town_name_label.size = Vector2(300, 60)
+	town_name_label.position = Vector2(100, 100)  # Will be repositioned when shown
+	town_name_label.hide()  # Start hidden
+	
+	print("DEBUG: Created town_name_label with size: ", town_name_label.size)
+	
+	# Add to UI layer
+	var ui_layer = $UI
+	if ui_layer:
+		ui_layer.add_child(town_name_label)
+		print("DEBUG: Added town_name_label to UI layer")
+	else:
+		print("ERROR: No UI layer found for town_name_label")
+	
+	# Create timer to hide the label
+	town_name_timer = Timer.new()
+	town_name_timer.wait_time = 3.0
+	town_name_timer.one_shot = true
+	town_name_timer.timeout.connect(_on_town_name_timeout)
+	add_child(town_name_timer)
+
+func _on_town_name_timeout():
+	# Hide the town name label after timeout
+	if town_name_label:
+		town_name_label.hide()
+
+func _exit_tree():
+	# Clean up resources when the scene exits
+	if town_name_timer and is_instance_valid(town_name_timer):
+		if town_name_timer.timeout.is_connected(_on_town_name_timeout):
+			town_name_timer.timeout.disconnect(_on_town_name_timeout)
+		if town_name_timer.get_parent():
+			town_name_timer.get_parent().remove_child.call_deferred(town_name_timer)
+		else:
+			town_name_timer.queue_free()
+		town_name_timer = null
+	
+	if town_name_label and is_instance_valid(town_name_label):
+		if town_name_label.get_parent():
+			town_name_label.get_parent().remove_child.call_deferred(town_name_label)
+		else:
+			town_name_label.queue_free()
+		town_name_label = null
+	
+	# Disconnect all main signals if nodes still exist
+	if player and is_instance_valid(player):
+		if player.encounter_started.is_connected(_on_encounter_started):
+			player.encounter_started.disconnect(_on_encounter_started)
+		if player.camping_started.is_connected(_on_camping_started):
+			player.camping_started.disconnect(_on_camping_started)
+		if player.movement_finished.is_connected(_on_player_moved):
+			player.movement_finished.disconnect(_on_player_moved)
+		if player.town_name_display.is_connected(_on_town_name_display):
+			player.town_name_display.disconnect(_on_town_name_display)
+	
+	if combat_manager and is_instance_valid(combat_manager):
+		if combat_manager.combat_finished.is_connected(_on_combat_finished):
+			combat_manager.combat_finished.disconnect(_on_combat_finished)
+
 func respawn_player():
 	print("Player defeated! Respawning at starting location...")
 	
@@ -896,6 +1047,10 @@ func _input(event):
 	# Handle map regeneration with PageDown key
 	if event.is_action_pressed("ui_page_down"):
 		regenerate_map()
+	
+	# Find nearby towns with T key
+	if event is InputEventKey and event.pressed and event.keycode == KEY_T:
+		find_nearby_towns()
 
 func _close_camping_overlay():
 	camping_overlay_active = false
@@ -904,6 +1059,53 @@ func _close_camping_overlay():
 	var camping_overlays = get_children().filter(func(child): return child.has_meta("is_camping_overlay"))
 	for overlay in camping_overlays:
 		overlay.queue_free()
+
+func find_nearby_towns():
+	if !terrain or !player:
+		print("Error: Missing terrain or player reference!")
+		return
+	
+	print("=== NEARBY TOWNS ===")
+	var player_tile_pos = Vector2i(int(player.global_position.x / TILE_SIZE), int(player.global_position.y / TILE_SIZE))
+	print("Player position: Tile (", player_tile_pos.x, ", ", player_tile_pos.y, ") - World (", player.global_position.x, ", ", player.global_position.y, ")")
+	
+	var towns_found = []
+	
+	# Get all towns from terrain
+	if terrain.has_method("get_all_towns"):
+		towns_found = terrain.get_all_towns()
+	else:
+		print("Terrain doesn't have get_all_towns method - searching manually...")
+		# Manual search through sections
+		for section_id in terrain.map_sections.keys():
+			var section = terrain.map_sections[section_id]
+			for local_pos in section.town_data.keys():
+				var world_tile_pos = terrain.world_to_global_tile(local_pos, section_id)
+				var town_data = section.town_data[local_pos]
+				var distance = player_tile_pos.distance_to(Vector2(world_tile_pos.x, world_tile_pos.y))
+				towns_found.append({
+					"name": town_data.get("name", "Unknown"),
+					"world_pos": world_tile_pos,
+					"distance": distance,
+					"section": section_id
+				})
+	
+	if towns_found.size() == 0:
+		print("No towns found!")
+		return
+	
+	# Sort towns by distance
+	towns_found.sort_custom(func(a, b): return a.distance < b.distance)
+	
+	print("Found ", towns_found.size(), " towns:")
+	for i in range(min(5, towns_found.size())):  # Show closest 5 towns
+		var town = towns_found[i]
+		print("  ", i + 1, ". ", town.name, " - Tile (", town.world_pos.x, ", ", town.world_pos.y, ") - Distance: ", "%.1f" % town.distance, " tiles")
+		if i == 0:
+			print("     ^^ CLOSEST TOWN ^^")
+	
+	print("Press T again to refresh town list")
+	print("===================")
 	
 	print("Camping overlay closed")
 

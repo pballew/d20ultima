@@ -11,30 +11,103 @@ signal start_game(character_data: CharacterData)
 @onready var sprite_container = $SpriteDisplay/SpriteContainer
 
 func _ready():
-	# Connect signals
-	continue_btn.pressed.connect(_on_continue)
-	new_character_btn.pressed.connect(_on_new_character)
-	load_character_btn.pressed.connect(_on_load_character)
-	quit_btn.pressed.connect(_on_quit)
+	print("=== MainMenu _ready() Debug ===")
+	print("MainMenu node path: ", get_path())
+	print("MainMenu size: ", size)
+	print("MainMenu position: ", position)
 	
-	character_creation.character_created.connect(_on_character_created)
-	character_creation.character_loaded.connect(_on_character_loaded)
+	# Check if all required nodes exist
+	if not continue_btn:
+		print("ERROR: continue_btn not found!")
+	if not new_character_btn:
+		print("ERROR: new_character_btn not found!")
+	if not load_character_btn:
+		print("ERROR: load_character_btn not found!")
+	if not quit_btn:
+		print("ERROR: quit_btn not found!")
+	if not character_creation:
+		print("ERROR: character_creation not found!")
+	if not sprite_container:
+		print("ERROR: sprite_container not found!")
+	
+	# Connect signals
+	if continue_btn:
+		continue_btn.pressed.connect(_on_continue)
+	if new_character_btn:
+		new_character_btn.pressed.connect(_on_new_character)
+	if load_character_btn:
+		load_character_btn.pressed.connect(_on_load_character)
+	if quit_btn:
+		quit_btn.pressed.connect(_on_quit)
+	
+	if character_creation:
+		character_creation.character_created.connect(_on_character_created)
+		character_creation.character_loaded.connect(_on_character_loaded)
 	
 	# Generate and display all player sprites
 	display_all_player_sprites()
+	
+	# Force MainMenu to front and ensure proper positioning
+	z_index = 200
+	call_deferred("move_to_front")
+	print("MainMenu moved to front with z_index: ", z_index)
 	
 	# Show main menu initially
 	show_main_menu()
 
 func show_main_menu():
+	print("=== MainMenu Debug ===")
+	print("MainMenu visible: ", visible)
+	print("MainMenu modulate: ", modulate)
+	
+	# Override the existing background color to be bright
+	var background = get_node("Background")
+	if background:
+		background.color = Color.GREEN
+		print("Changed existing background to GREEN")
+	else:
+		# Add a debug background to make the MainMenu visible
+		if not has_node("DebugBackground"):
+			var debug_bg = ColorRect.new()
+			debug_bg.name = "DebugBackground"
+			debug_bg.color = Color.DARK_GREEN
+			debug_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			add_child(debug_bg)
+			move_child(debug_bg, 0)  # Move to back
+			print("Added debug background to MainMenu")
+	
 	$CenterContainer.show()
 	character_creation.hide()
+	
+	print("CenterContainer visible: ", $CenterContainer.visible)
+	print("CenterContainer modulate: ", $CenterContainer.modulate)
+	
+	if title_label:
+		print("Title label visible: ", title_label.visible)
+		print("Title label text: ", title_label.text)
+		print("Title label modulate: ", title_label.modulate)
+		
+		# Make title label more visible
+		title_label.modulate = Color.YELLOW
+		print("Changed title label color to YELLOW")
+	else:
+		print("ERROR: Title label not found!")
+	
+	# Make buttons more visible
+	if new_character_btn:
+		new_character_btn.modulate = Color.WHITE
+		print("New Character button visible: ", new_character_btn.visible)
+	if quit_btn:
+		quit_btn.modulate = Color.RED
+		print("Quit button visible: ", quit_btn.visible)
 	
 	# Update continue button based on save data
 	_update_continue_button()
 	
 	# Update load character button based on available characters
 	_update_load_character_button()
+	
+	print("=== End MainMenu Debug ===")
 
 func _update_continue_button():
 	"""Update the continue button text and visibility based on save data"""

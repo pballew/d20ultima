@@ -22,10 +22,15 @@ func setup_combat_ui(p: Player, cm: CombatManager):
 	player = p
 	combat_manager = cm
 	
-	player.health_changed.connect(_on_player_health_changed)
-	combat_manager.turn_changed.connect(_on_turn_changed)
-	combat_manager.combat_finished.connect(_on_combat_finished)
-	combat_manager.combat_message.connect(_on_combat_message)
+	# Connect signals only if not already connected
+	if not player.health_changed.is_connected(_on_player_health_changed):
+		player.health_changed.connect(_on_player_health_changed)
+	if not combat_manager.turn_changed.is_connected(_on_turn_changed):
+		combat_manager.turn_changed.connect(_on_turn_changed)
+	if not combat_manager.combat_finished.is_connected(_on_combat_finished):
+		combat_manager.combat_finished.connect(_on_combat_finished)
+	if not combat_manager.combat_message.is_connected(_on_combat_message):
+		combat_manager.combat_message.connect(_on_combat_message)
 
 func show_combat(enemies: Array):
 	current_enemies = enemies

@@ -9,6 +9,7 @@ const FILE_EXTENSION = ".dat"
 class MapSectionData:
 	var section_id: Vector2i
 	var terrain_data: Dictionary = {}  # Key: Vector2i local_pos, Value: int terrain_type
+	var town_data: Dictionary = {}     # Key: Vector2i local_pos, Value: Dictionary town_info
 	var generation_seed: int = 0
 	var generation_timestamp: int = 0
 	var map_width: int = 25
@@ -22,6 +23,7 @@ class MapSectionData:
 		return {
 			"section_id": {"x": section_id.x, "y": section_id.y},
 			"terrain_data": serialize_terrain_data(),
+			"town_data": serialize_town_data(),
 			"generation_seed": generation_seed,
 			"generation_timestamp": generation_timestamp,
 			"map_width": map_width,
@@ -31,6 +33,7 @@ class MapSectionData:
 	func from_dict(data: Dictionary):
 		section_id = Vector2i(data.section_id.x, data.section_id.y)
 		deserialize_terrain_data(data.terrain_data)
+		deserialize_town_data(data.get("town_data", {}))
 		generation_seed = data.get("generation_seed", 0)
 		generation_timestamp = data.get("generation_timestamp", 0)
 		map_width = data.get("map_width", 25)
@@ -49,6 +52,20 @@ class MapSectionData:
 			var coords = key.split(",")
 			var pos = Vector2i(int(coords[0]), int(coords[1]))
 			terrain_data[pos] = serialized[key]
+	
+	func serialize_town_data() -> Dictionary:
+		var serialized = {}
+		for pos in town_data.keys():
+			var key = str(pos.x) + "," + str(pos.y)
+			serialized[key] = town_data[pos]
+		return serialized
+	
+	func deserialize_town_data(serialized: Dictionary):
+		town_data.clear()
+		for key in serialized.keys():
+			var coords = key.split(",")
+			var pos = Vector2i(int(coords[0]), int(coords[1]))
+			town_data[pos] = serialized[key]
 
 # Singleton instance
 # No singleton needed - use instances
@@ -172,9 +189,10 @@ func parse_section_id_from_filename(filename: String) -> Vector2i:
 	return Vector2i.ZERO
 
 # Convert terrain data from EnhancedTerrain format to MapSectionData format
-func create_section_data_from_terrain(section_id: Vector2i, terrain_dict: Dictionary, seed: int = 0) -> MapSectionData:
+func create_section_data_from_terrain(section_id: Vector2i, terrain_dict: Dictionary, seed: int = 0, town_dict: Dictionary = {}) -> MapSectionData:
 	var section_data = MapSectionData.new(section_id)
 	section_data.terrain_data = terrain_dict.duplicate()
+	section_data.town_data = town_dict.duplicate()
 	section_data.generation_seed = seed
 	return section_data
 

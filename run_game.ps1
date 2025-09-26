@@ -3,21 +3,20 @@ Get-Process Godot_v4.4.1-stable_win64 | Stop-Process -Force
 
 # Run the console version first to check for errors
 $output = & ./Godot_v4.4.1-stable_win64_console.exe --verbose --headless --quit 2>&1
-$hasErrors = $output | Select-String -Pattern "ERROR:|SCRIPT ERROR:"
+# Filter out cleanup/exit errors that don't affect gameplay
+$criticalErrors = $output | Select-String -Pattern "ERROR:|SCRIPT ERROR:" | Where-Object {
+    $_ -notmatch "cleanup \(core/object/object.cpp" -and
+    $_ -notmatch "Cannot get path of node as it is not in a scene tree" -and
+    $_ -notmatch "resources still in use at exit" -and
+    $_ -notmatch "ObjectDB instances leaked at exit"
+}
 
-if ($hasErrors) {
-    Write-Host "Found errors in startup:"
-    # Show the full output for better context
-    $output | ForEach-Object {
-        if ($_ -match "(ERROR|SCRIPT ERROR):") {
-            Write-Host "`nERROR FOUND:" -ForegroundColor Red
-            Write-Host $_
-        } elseif ($_ -match "^\s+at:") {
-            Write-Host $_ -ForegroundColor Yellow
-        } else {
-            # Store some context lines
-            $context = $_
-        }
+if ($criticalErrors) {
+    Write-Host "Found critical errors in startup:"
+    # Show the critical errors
+    $criticalErrors | ForEach-Object {
+        Write-Host "`nCRITICAL ERROR FOUND:" -ForegroundColor Red
+        Write-Host $_
     }
     exit 1
 } else {

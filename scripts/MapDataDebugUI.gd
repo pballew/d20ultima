@@ -4,21 +4,28 @@ var terrain
 var info_label: Label
 
 func _ready():
-	# Find the terrain node - try different paths
+	# Find the terrain node - try different paths and both old and new systems
 	terrain = get_node_or_null("/root/Main/EnhancedTerrain")
 	if not terrain:
+		terrain = get_node_or_null("/root/Main/EnhancedTerrainTileMap")
+	if not terrain:
 		terrain = get_node_or_null("../EnhancedTerrain")
+	if not terrain:
+		terrain = get_node_or_null("../EnhancedTerrainTileMap")
 	if not terrain:
 		# Try searching for it
 		var main = get_tree().get_first_node_in_group("main")
 		if main:
 			terrain = main.get_node_or_null("EnhancedTerrain")
+			if not terrain:
+				terrain = main.get_node_or_null("EnhancedTerrainTileMap")
 	
 	if not terrain:
-		print("Warning: MapDataDebugUI could not find EnhancedTerrain node")
+		print("Warning: MapDataDebugUI could not find terrain node (either EnhancedTerrain or EnhancedTerrainTileMap)")
 		return
 	else:
 		print("MapDataDebugUI found terrain node at: ", terrain.get_path())
+		print("Terrain type: ", terrain.get_script().get_global_name() if terrain.get_script() else "Unknown")
 	
 	# Create UI
 	setup_ui()

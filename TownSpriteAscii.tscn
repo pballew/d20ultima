@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://dri9s6y6e9p0e"]
+
+[ext_resource type="Script" path="res://town_sprite_ascii.gd" id="1_ascii_art"]
+
+[node name="TownSpriteAscii" type="Node"]
+script = ExtResource("1_ascii_art")

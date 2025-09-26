@@ -10,7 +10,7 @@ const MAP_HEIGHT = 20  # Reduced from 40 to make sections more visible
 enum TerrainType { 
 	GRASS, DIRT, STONE, WATER, TREE, 
 	MOUNTAIN, VALLEY, RIVER, LAKE, OCEAN,
-	FOREST, HILLS, BEACH, SWAMP
+	FOREST, HILLS, BEACH, SWAMP, TOWN
 }
 
 # Map section structure for multi-map support
@@ -68,6 +68,11 @@ func _ready():
 	# Initialize multi-map system
 	initialize_multi_map_system()
 	
+	# DEBUG: Force clear existing map data to test new town generation
+	map_sections.clear()
+	
+	print("=== TOWN GENERATION DEBUG: About to start terrain generation ===")
+	
 	# Generate initial map sections to cover the spawn area and adjacent areas
 	print("Starting terrain generation...")
 	
@@ -92,6 +97,25 @@ func _ready():
 		create_sprites_for_section(section_id)
 	
 	print("Generated all initial sections")
+	
+	# DEBUG: Manually place a town in center section for testing
+	var center_section_id = Vector2i(0, 0)
+	var test_town_pos = Vector2i(5, 5)  # Place at (5,5) within section
+	
+	if map_sections.has(center_section_id):
+		var center_section = map_sections[center_section_id]
+		center_section.terrain_data[test_town_pos] = TerrainType.TOWN
+		terrain_data[Vector2i(5, 5)] = TerrainType.TOWN  # Global position
+		print("=== DEBUG: Manually placed town at (5,5) in center section ===")
+		
+		# Also refresh the tilemap for this section to show the town
+		var tilemap_name = "TileMap_" + str(center_section_id.x) + "_" + str(center_section_id.y)
+		var existing_tilemap = get_node_or_null(tilemap_name)
+		if existing_tilemap:
+			populate_native_tilemap(existing_tilemap, center_section.terrain_data, center_section_id)
+			print("=== DEBUG: Refreshed tilemap to show manual town ===")
+	else:
+		print("=== DEBUG ERROR: Center section not found! ===")
 	
 	# Don't call ensure_safe_spawn_area here - it generates extra sections
 	# The spawn area should already be walkable from the generated sections
@@ -361,6 +385,11 @@ func generate_map_section_data_only(section_id: Vector2i):
 		print("Loaded existing data for section: ", section_id)
 		section.terrain_data = saved_data.terrain_data.duplicate()
 		
+		# Restore town data if it exists
+		if saved_data.town_data.size() > 0:
+			section.set("town_data", saved_data.town_data.duplicate())
+			print("Restored ", saved_data.town_data.size(), " towns for section ", section_id)
+		
 		# Update global terrain_data for backward compatibility
 		for local_pos in section.terrain_data.keys():
 			var global_tile_pos = world_to_global_tile(local_pos, section_id)
@@ -397,18 +426,117 @@ func generate_map_section_data_only(section_id: Vector2i):
 			var global_tile_pos = world_to_global_tile(local_tile_pos, section_id)
 			terrain_data[global_tile_pos] = terrain_type
 	
+	# Generate towns for this section
+	generate_towns_for_section(section_id)
+	
 	# Save the generated section data to file
 	save_section_data(section_id)
+
+func generate_towns_for_section(section_id: Vector2i):
+	# Generate towns with 15-30 tile spacing
+	var section = map_sections[section_id]
+	var TownNameGen = load("res://scripts/TownNameGenerator.gd")
+	
+	# Create a deterministic RNG for this section
+	var rng = RandomNumberGenerator.new()
+	rng.seed = current_world_seed + section_id.x * 1000 + section_id.y
+	
+	# Try to place 1-2 towns per section, with spacing constraints
+	var town_attempts = rng.randi_range(0, 2)  # 0-2 towns per section
+	
+	for attempt in range(town_attempts):
+		# Random position within section
+		var local_x = rng.randi_range(-MAP_WIDTH/2 + 2, MAP_WIDTH/2 - 2)
+		var local_y = rng.randi_range(-MAP_HEIGHT/2 + 2, MAP_HEIGHT/2 - 2)
+		var local_pos = Vector2i(local_x, local_y)
+		var global_pos = world_to_global_tile(local_pos, section_id)
+		
+		# Check if this position is suitable for a town
+		print("Trying to place town at local_pos: ", local_pos, " global_pos: ", global_pos)
+		if can_place_town_at_position(local_pos, section_id):
+			print("Position is suitable for town")
+			# Check spacing from other towns
+			if is_town_spacing_valid(global_pos):
+				print("Spacing is valid for town")
+				# Place the town
+				section.terrain_data[local_pos] = TerrainType.TOWN
+				terrain_data[global_pos] = TerrainType.TOWN
+				
+				# Generate town data and store it
+				var town_data = TownNameGen.generate_town_data(global_pos, rng.seed + attempt)
+				store_town_data(section_id, local_pos, town_data)
+				
+				print("Placed town '", town_data.name, "' at ", global_pos, " in section ", section_id)
+			else:
+				print("Town spacing invalid at ", global_pos)
+		else:
+			print("Position not suitable for town at ", local_pos)
+
+func can_place_town_at_position(local_pos: Vector2i, section_id: Vector2i) -> bool:
+	print("*** CAN_PLACE_TOWN_AT_POSITION CALLED FOR ", local_pos, " in section ", section_id, " ***")
+	
+	# Towns can only be placed on suitable terrain types
+	var section = map_sections[section_id]
+	if not section.terrain_data.has(local_pos):
+		print("  ERROR: No terrain data at local_pos: ", local_pos)
+		return false
+	
+	var terrain_type = section.terrain_data[local_pos]
+	var terrain_name = TerrainType.keys()[terrain_type] if terrain_type < TerrainType.keys().size() else "UNKNOWN"
+	print("  Terrain type at ", local_pos, " is: ", terrain_type, " (", terrain_name, ")")
+	
+	# For debugging: Allow towns on any terrain type except water/lava
+	var forbidden_types = [TerrainType.WATER, TerrainType.LAVA]
+	var is_suitable = terrain_type not in forbidden_types
+	print("  Is suitable: ", is_suitable, " (terrain ", terrain_type, " not in forbidden: ", forbidden_types, ")")
+	return is_suitable
+
+func is_town_spacing_valid(global_pos: Vector2i) -> bool:
+	# Check that no other towns are within 15 tiles
+	var min_distance = 15
+	
+	# Check existing towns in nearby sections
+	var search_radius = 2  # Check 2 sections in each direction
+	var center_section = global_tile_to_section_and_local(global_pos)["section_id"]
+	
+	for x in range(-search_radius, search_radius + 1):
+		for y in range(-search_radius, search_radius + 1):
+			var check_section_id = center_section + Vector2i(x, y)
+			if map_sections.has(check_section_id):
+				var section = map_sections[check_section_id]
+				for local_pos in section.terrain_data.keys():
+					if section.terrain_data[local_pos] == TerrainType.TOWN:
+						var existing_global_pos = world_to_global_tile(local_pos, check_section_id)
+						var distance = global_pos.distance_to(existing_global_pos)
+						if distance < min_distance:
+							return false
+	
+	return true
+
+func store_town_data(section_id: Vector2i, local_pos: Vector2i, town_data: Dictionary):
+	# Store town data in the section for persistence
+	# For now, we'll add this to the map data manager later
+	var section = map_sections[section_id]
+	if not section.has_method("get_town_data"):
+		# Add a simple dictionary to store town data
+		if not section.has("town_data"):
+			section.set("town_data", {})
+		section.get("town_data")[local_pos] = town_data
 
 func save_section_data(section_id: Vector2i):
 	if not map_sections.has(section_id):
 		return
 	
 	var section = map_sections[section_id]
+	var town_dict = {}
+	if section.has("town_data"):
+		town_dict = section.get("town_data")
+	
 	var section_data = map_data_manager.create_section_data_from_terrain(
 		section_id, 
 		section.terrain_data, 
-		current_world_seed
+		current_world_seed,
+		town_dict
 	)
 	map_data_manager.save_section(section_data)
 
@@ -575,6 +703,8 @@ func create_terrain_sprite(tile_pos: Vector2i, terrain_type: int):
 			create_hills_sprite(world_pos, tile_pos)
 		TerrainType.VALLEY:
 			create_valley_sprite(world_pos)
+		TerrainType.TOWN:
+			create_town_sprite(world_pos, tile_pos)
 		_:
 			create_basic_terrain(world_pos, terrain_type)
 
@@ -957,3 +1087,161 @@ func get_used_rect() -> Rect2i:
 	var height = max_tile_y - min_tile_y + 1
 	
 	return Rect2i(Vector2i(min_tile_x, min_tile_y), Vector2i(width, height))
+
+func create_town_sprite(world_pos: Vector2, tile_pos: Vector2i):
+	var sprite = Sprite2D.new()
+	sprite.position = world_pos
+	sprite.texture = create_town_texture(tile_pos)
+	add_child(sprite)
+
+func create_town_texture(tile_pos: Vector2i) -> ImageTexture:
+	var image = Image.create(TILE_SIZE, TILE_SIZE, false, Image.FORMAT_RGB8)
+	
+	# Medieval town colors
+	var grass_color = Color(0.3, 0.6, 0.2)
+	var wall_color = Color(0.7, 0.7, 0.8)  # Light grey stone
+	var roof_color = Color(0.6, 0.3, 0.2)  # Dark red/brown
+	var door_color = Color(0.3, 0.2, 0.1)  # Dark brown
+	var window_color = Color(0.8, 0.8, 0.4)  # Yellow light
+	
+	# Fill with grass background
+	for x in range(TILE_SIZE):
+		for y in range(TILE_SIZE):
+			image.set_pixel(x, y, grass_color)
+	
+	# Create a deterministic pattern based on tile position
+	var rng = RandomNumberGenerator.new()
+	rng.seed = tile_pos.x * 1000 + tile_pos.y
+	
+	var building_type = rng.randi() % 3
+	
+	match building_type:
+		0: # Tower/Keep style
+			create_tower_building(image, rng)
+		1: # House cluster
+			create_house_cluster(image, rng)
+		2: # Walled settlement
+			create_walled_town(image, rng)
+	
+	var texture = ImageTexture.new()
+	texture.set_image(image)
+	return texture
+
+func create_tower_building(image: Image, rng: RandomNumberGenerator):
+	var wall_color = Color(0.7, 0.7, 0.8)
+	var roof_color = Color(0.6, 0.3, 0.2)
+	var door_color = Color(0.3, 0.2, 0.1)
+	
+	# Draw main tower (centered)
+	var tower_width = 8
+	var tower_height = 20
+	var tower_x = (TILE_SIZE - tower_width) / 2
+	var tower_y = TILE_SIZE - tower_height - 2
+	
+	# Tower walls
+	for x in range(tower_x, tower_x + tower_width):
+		for y in range(tower_y, tower_y + tower_height):
+			if x < TILE_SIZE and y < TILE_SIZE:
+				image.set_pixel(x, y, wall_color)
+	
+	# Tower roof (pointed)
+	var roof_height = 6
+	for y in range(roof_height):
+		var roof_width = tower_width - y * 2
+		var roof_start_x = tower_x + y
+		for x in range(roof_start_x, roof_start_x + roof_width):
+			if x < TILE_SIZE and tower_y + y - roof_height >= 0:
+				image.set_pixel(x, tower_y - y, roof_color)
+	
+	# Door at bottom center
+	var door_width = 2
+	var door_height = 4
+	var door_x = tower_x + (tower_width - door_width) / 2
+	var door_y = tower_y + tower_height - door_height
+	
+	for x in range(door_x, door_x + door_width):
+		for y in range(door_y, door_y + door_height):
+			if x < TILE_SIZE and y < TILE_SIZE:
+				image.set_pixel(x, y, door_color)
+
+func create_house_cluster(image: Image, rng: RandomNumberGenerator):
+	var wall_color = Color(0.7, 0.7, 0.8)
+	var roof_color = Color(0.6, 0.3, 0.2)
+	var door_color = Color(0.3, 0.2, 0.1)
+	var window_color = Color(0.8, 0.8, 0.4)
+	
+	# Create 2-3 small buildings
+	var buildings = [
+		{"x": 2, "y": 18, "w": 8, "h": 10},
+		{"x": 12, "y": 20, "w": 6, "h": 8},
+		{"x": 20, "y": 16, "w": 8, "h": 12}
+	]
+	
+	for building in buildings:
+		# Building walls
+		for x in range(building.x, building.x + building.w):
+			for y in range(building.y, building.y + building.h):
+				if x < TILE_SIZE and y < TILE_SIZE:
+					image.set_pixel(x, y, wall_color)
+		
+		# Simple triangular roof
+		var roof_peak_y = building.y - 3
+		for y in range(3):
+			var roof_width = building.w - y * 2
+			var roof_start_x = building.x + y
+			for x in range(roof_start_x, roof_start_x + roof_width):
+				if x < TILE_SIZE and roof_peak_y + y >= 0:
+					image.set_pixel(x, roof_peak_y + y, roof_color)
+		
+		# Small door and window
+		var door_x = building.x + 1
+		var door_y = building.y + building.h - 3
+		for x in range(door_x, door_x + 2):
+			for y in range(door_y, door_y + 3):
+				if x < TILE_SIZE and y < TILE_SIZE:
+					image.set_pixel(x, y, door_color)
+		
+		# Window
+		if building.w > 4:
+			var window_x = building.x + building.w - 3
+			var window_y = building.y + 2
+			image.set_pixel(window_x, window_y, window_color)
+			image.set_pixel(window_x + 1, window_y, window_color)
+
+func create_walled_town(image: Image, rng: RandomNumberGenerator):
+	var wall_color = Color(0.7, 0.7, 0.8)
+	var roof_color = Color(0.6, 0.3, 0.2)
+	var door_color = Color(0.3, 0.2, 0.1)
+	
+	# Draw outer wall (perimeter)
+	for x in range(TILE_SIZE):
+		image.set_pixel(x, 2, wall_color)  # Top wall
+		image.set_pixel(x, TILE_SIZE - 3, wall_color)  # Bottom wall
+	
+	for y in range(2, TILE_SIZE - 2):
+		image.set_pixel(2, y, wall_color)  # Left wall
+		image.set_pixel(TILE_SIZE - 3, y, wall_color)  # Right wall
+	
+	# Gate in the wall
+	var gate_x = TILE_SIZE / 2 - 1
+	for x in range(gate_x, gate_x + 2):
+		image.set_pixel(x, TILE_SIZE - 3, door_color)
+	
+	# Small building inside
+	var inner_building_x = 8
+	var inner_building_y = 8
+	var inner_building_w = 12
+	var inner_building_h = 12
+	
+	for x in range(inner_building_x, inner_building_x + inner_building_w):
+		for y in range(inner_building_y, inner_building_y + inner_building_h):
+			if x < TILE_SIZE - 3 and y < TILE_SIZE - 3:
+				image.set_pixel(x, y, wall_color)
+	
+	# Roof for inner building
+	for y in range(4):
+		var roof_width = inner_building_w - y * 2
+		var roof_start_x = inner_building_x + y
+		for x in range(roof_start_x, roof_start_x + roof_width):
+			if x < TILE_SIZE - 3 and inner_building_y - y - 2 >= 0:
+				image.set_pixel(x, inner_building_y - y - 2, roof_color)

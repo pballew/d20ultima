@@ -29,7 +29,9 @@ func _ready():
 func setup_player_stats(p: Character):
 	player = p
 	if player:
-		player.health_changed.connect(_on_player_health_changed)
+		# Only connect signal if not already connected
+		if not player.health_changed.is_connected(_on_player_health_changed):
+			player.health_changed.connect(_on_player_health_changed)
 		update_all_stats()
 
 func update_all_stats():

@@ -1,0 +1,68 @@
+[gd_scene load_steps=2 format=3 uid="uid://bkp4sb2fw8grl"]
+
+[ext_resource type="Script" path="res://scripts/TownDialog.gd" id="1_8xr3j"]
+
+[node name="TownDialog" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1_8xr3j")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.5)
+
+[node name="DialogPanel" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = -100.0
+offset_right = 200.0
+offset_bottom = 100.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="DialogPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = -20.0
+
+[node name="TownLabel" type="Label" parent="DialogPanel/VBoxContainer"]
+layout_mode = 2
+text = "Welcome to Townsville!"
+horizontal_alignment = 1
+
+[node name="MessageLabel" type="Label" parent="DialogPanel/VBoxContainer"]
+layout_mode = 2
+text = "Do you want to enter the town?"
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="DialogPanel/VBoxContainer"]
+layout_mode = 2
+
+[node name="ButtonContainer" type="HBoxContainer" parent="DialogPanel/VBoxContainer"]
+layout_mode = 2
+
+[node name="EnterButton" type="Button" parent="DialogPanel/VBoxContainer/ButtonContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Enter Town"
+
+[node name="CancelButton" type="Button" parent="DialogPanel/VBoxContainer/ButtonContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Continue Journey"
+
+[connection signal="pressed" from="DialogPanel/VBoxContainer/ButtonContainer/EnterButton" to="." method="_on_enter_button_pressed"]
+[connection signal="pressed" from="DialogPanel/VBoxContainer/ButtonContainer/CancelButton" to="." method="_on_cancel_button_pressed"]
