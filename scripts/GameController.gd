@@ -6,20 +6,19 @@ extends Control
 
 var current_character: CharacterData
 var quit_confirmation_dialog: AcceptDialog
+## Controls whether pressing Q in-game saves and returns to menu (true) or saves and quits (false)
+var q_saves_to_menu: bool = true
 
 func _ready():
 	# Add GameController to a group so Player can find it
 	add_to_group("game_controller")
 	
+	# Ensure GameController processes input with high priority
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	
 	# Ensure proper layout
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	
-	# Add a debug background color to make the controller visible
-	var color_rect = ColorRect.new()
-	color_rect.color = Color.DARK_BLUE
-	color_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(color_rect)
-	move_child(color_rect, 0)  # Move to back
 	
 	# Create quit confirmation dialog
 	_create_quit_confirmation_dialog()
@@ -39,9 +38,15 @@ func _ready():
 	print("MainMenu z_index set to: ", main_menu.z_index)
 	print("MainMenu anchors: ", main_menu.anchor_left, ", ", main_menu.anchor_top, ", ", main_menu.anchor_right, ", ", main_menu.anchor_bottom)
 	print("MainMenu offset: ", main_menu.offset_left, ", ", main_menu.offset_top, ", ", main_menu.offset_right, ", ", main_menu.offset_bottom)
-	
-	# Create a simple working menu directly in GameController to bypass broken MainMenu
-	create_emergency_menu()
+
+	# Ensure menu visible initially; hide game scene until a game starts
+	if main_menu:
+		main_menu.show()
+		if main_menu.has_method("show_main_menu"):
+			main_menu.show_main_menu()
+		main_menu.call_deferred("move_to_front")
+	if game_scene:
+		game_scene.hide()
 	
 	# Disable game camera while in menu
 	var player_camera = game_scene.get_node("Camera2D")
@@ -91,12 +96,6 @@ func _on_start_game(character_data: CharacterData):
 	print("Hiding main menu...")
 	main_menu.hide()
 	
-	# Hide emergency menu if it exists
-	for child in get_children():
-		if child is VBoxContainer and child != main_menu and child != game_scene and child != town_dialog:
-			print("Hiding emergency menu...")
-			child.hide()
-	
 	print("Looking for game scene nodes...")
 	# Initialize game with character data
 	var player = game_scene.get_node("Player")
@@ -110,7 +109,11 @@ func _on_start_game(character_data: CharacterData):
 	var player_camera = game_scene.get_node("Camera2D")
 	if player_camera:
 		player_camera.enabled = true
-		print("Camera enabled at: ", player_camera.global_position)
+		# Immediately center the camera on the player before showing the scene
+		player_camera.global_position = player.global_position
+		if player and player.has_method("set_camera_target"):
+			player.set_camera_target(player.global_position)
+		print("Camera enabled and centered at: ", player_camera.global_position)
 	else:
 		print("ERROR: Camera not found!")
 	
@@ -150,7 +153,10 @@ func _save_and_return_to_menu():
 	if current_character and game_scene.visible:
 		# Update character data from current player state
 		var player = game_scene.get_node("Player")
-		current_character = player.save_to_character_data()
+		if player and player.has_method("save_to_character_data"):
+			current_character = player.save_to_character_data()
+		if current_character and current_character.explored_tiles and current_character.explored_tiles.size() > 0:
+			print("Saving fog explored tile count:", current_character.explored_tiles.size())
 		
 		# Save using the new save system
 		SaveSystem.save_game_state(current_character)
@@ -175,7 +181,10 @@ func _save_and_return_to_menu():
 func save_game():
 	if current_character and game_scene.visible:
 		var player = game_scene.get_node("Player")
-		current_character = player.save_to_character_data()
+		if player and player.has_method("save_to_character_data"):
+			current_character = player.save_to_character_data()
+		if current_character and current_character.explored_tiles and current_character.explored_tiles.size() > 0:
+			print("Manual save fog explored tile count:", current_character.explored_tiles.size())
 		
 		# Save using the new save system
 		var success = SaveSystem.save_game_state(current_character)
@@ -185,79 +194,7 @@ func save_game():
 		else:
 			print("Failed to save game!")
 
-func create_emergency_menu():
-	"""Create a simple emergency menu since MainMenu is broken"""
-	var emergency_container = VBoxContainer.new()
-	emergency_container.position = Vector2(400, 200)
-	emergency_container.size = Vector2(300, 400)
-	emergency_container.add_theme_color_override("background_color", Color.BLUE)
-	add_child(emergency_container)
-	
-	var title = Label.new()
-	title.text = "D20 RPG - Emergency Menu"
-	title.add_theme_color_override("font_color", Color.YELLOW)
-	emergency_container.add_child(title)
-	
-	var spacer = Control.new()
-	spacer.custom_minimum_size = Vector2(0, 50)
-	emergency_container.add_child(spacer)
-	
-	var new_game_btn = Button.new()
-	new_game_btn.text = "New Game (No Character Creation)"
-	new_game_btn.add_theme_color_override("font_color", Color.WHITE)
-	new_game_btn.add_theme_color_override("font_color_pressed", Color.BLACK)
-	new_game_btn.custom_minimum_size = Vector2(250, 40)
-	print("Connecting emergency button...")
-	var connection_result = new_game_btn.pressed.connect(_on_emergency_new_game)
-	print("Button connection result: ", connection_result)
-	emergency_container.add_child(new_game_btn)
-	
-	var quit_btn = Button.new()
-	quit_btn.text = "Quit"
-	quit_btn.add_theme_color_override("font_color", Color.WHITE)
-	quit_btn.custom_minimum_size = Vector2(250, 40)
-	quit_btn.pressed.connect(get_tree().quit)
-	emergency_container.add_child(quit_btn)
-	
-	print("Created emergency menu with ", emergency_container.get_child_count(), " children")
-	
-	# Add a timer to auto-start the game after 3 seconds for testing
-	var auto_start_timer = Timer.new()
-	auto_start_timer.wait_time = 3.0
-	auto_start_timer.one_shot = true
-	auto_start_timer.timeout.connect(_on_emergency_new_game)
-	add_child(auto_start_timer)
-	auto_start_timer.start()
-	print("Auto-start timer started - game will start in 3 seconds")
-	
-	# Force immediate game start for testing
-	print("FORCING IMMEDIATE GAME START FOR DEBUGGING...")
-	call_deferred("_on_emergency_new_game")
-
-func _on_emergency_new_game():
-	"""Start game with default character"""
-	print("=== EMERGENCY NEW GAME CLICKED ===")
-	print("Button function called successfully!")
-	print("Starting emergency new game...")
-	
-	# Create a basic character
-	var character = CharacterData.new()
-	character.character_name = "Emergency Hero"
-	character.character_race = CharacterData.CharacterRace.HUMAN
-	character.character_class = CharacterData.CharacterClass.FIGHTER
-	character.strength = 16
-	character.dexterity = 14
-	character.constitution = 15
-	character.intelligence = 13
-	character.wisdom = 12
-	character.charisma = 10
-	character.max_health = 20
-	character.current_health = 20
-	
-	print("Created emergency character: ", character.character_name)
-	print("About to call _on_start_game...")
-	_on_start_game(character)
-	print("=== END EMERGENCY NEW GAME ===")
+    
 
 func _input(event):
 	if event.is_action_pressed("ui_cancel") and game_scene.visible:
@@ -268,15 +205,28 @@ func _input(event):
 		get_tree().quit()
 	elif event is InputEventKey and event.pressed and event.keycode == KEY_Q:
 		if game_scene.visible:
-			# Quick save and return to menu
-			_save_and_return_to_menu()
+			if q_saves_to_menu:
+				# Q saves and returns to startup menu (no confirmation)
+				print("Q pressed: saving game and returning to main menu")
+				_save_and_return_to_menu()
+				get_viewport().set_input_as_handled()
+				return
+			else:
+				# Q saves and quits (single press exit)
+				if current_character:
+					var player = game_scene.get_node("Player")
+					if player and player.has_method("save_to_character_data"):
+						current_character = player.save_to_character_data()
+					SaveSystem.save_game_state(current_character)
+					print("Q pressed: game saved, quitting application")
+				else:
+					print("Q pressed: no character to save, quitting application")
+				get_tree().quit()
 		else:
-			# Exit the application when in main menu
-			get_tree().quit()
-	elif event is InputEventKey and event.pressed and event.keycode == KEY_N and main_menu.visible:
-		# Emergency keyboard shortcut to start new game
-		print("N key pressed - starting emergency new game via keyboard")
-		_on_emergency_new_game()
+			# On main menu: do nothing (already at startup dialog)
+			print("Q pressed on main menu: already at startup screen")
+			get_viewport().set_input_as_handled()
+			return
 
 func show_town_dialog(town_data: Dictionary):
 	"""Show town entry dialog with town data"""

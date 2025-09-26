@@ -54,6 +54,23 @@ func load_from_character_data(char_data: CharacterData):
 	armor_class = char_data.armor_class
 	# world_position now stored as tile-center already (no half-tile offset needed)
 	global_position = char_data.world_position
+
+	# Apply fog of war explored tiles if available
+	var fow = get_tree().get_root().find_child("FogOfWar", true, false)
+	if fow:
+		var explored_dict = fow.get("explored")
+		if explored_dict is Dictionary:
+			# Always clear previous character's fog to avoid leakage between characters
+			explored_dict.clear()
+			# If the loaded character has saved explored tiles, restore them
+			if char_data.explored_tiles and char_data.explored_tiles.size() > 0:
+				for v in char_data.explored_tiles:
+					explored_dict[Vector2i(int(v.x), int(v.y))] = true
+			# Recalculate visibility around current position (ensures starting tile visible for new chars)
+			if fow.has_method("reveal_around_position"):
+				fow.reveal_around_position(global_position)
+			if fow.has_method("queue_redraw"):
+				fow.queue_redraw()
 	frames_to_ignore_input = 1
 	print("Loaded character: ", character_name, " - Level ", level, " ", char_data.get_class_name())
 
@@ -75,6 +92,19 @@ func save_to_character_data() -> CharacterData:
 	char_data.armor_class = armor_class
 	# Save as tile-centered position (no offset math)
 	char_data.world_position = global_position
+
+	# Persist fog of war explored tiles
+	var fow = get_tree().get_root().find_child("FogOfWar", true, false)
+	if fow:
+		var explored_dict = fow.get("explored")
+		if explored_dict is Dictionary:
+			var arr: Array = []
+			for key in explored_dict.keys():
+				arr.append(Vector2(key.x, key.y))
+			char_data.explored_tiles = PackedVector2Array(arr)
+			var radius = fow.get("reveal_radius_tiles")
+			if typeof(radius) == TYPE_INT:
+				char_data.last_reveal_radius = int(radius)
 	char_data.save_timestamp = Time.get_datetime_string_from_system()
 	
 	return char_data
@@ -665,6 +695,12 @@ func debug_teleport_to_town():
 	
 	print("Player teleported to position: ", global_position)
 	print("Target position set to: ", current_target_position)
+
+	# Immediately center camera and update camera target
+	if camera:
+		camera.global_position = global_position
+		if has_method("set_camera_target"):
+			set_camera_target(global_position)
 	
 	# Force a check for town at new position (pass the player's center position)
 	check_for_town_at_position(global_position)

@@ -35,7 +35,7 @@ func _ready():
 	# Store the starting position for respawn
 	starting_position = player.global_position
 
-	# Now set camera position after terrain is ready
+	# Now set camera position after terrain is ready and starting position determined
 	camera.global_position = player.global_position
 	
 	# Add debug UI (hidden for cleaner gameplay)
@@ -60,9 +60,6 @@ func _ready():
 	# Setup combat UI
 	combat_ui.setup_combat_ui(player, combat_manager)
 
-	# Hide main menu if present
-	if has_node("../MainMenu"):
-		get_node("../MainMenu").hide()
 
 	print("Game scene ready!")
 
@@ -108,6 +105,9 @@ func regenerate_map():
 		if camera:
 			camera.global_position = player.global_position
 		print("Map regenerated successfully! Player at: ", player.global_position)
+		# Ensure camera target is synced to avoid smoothing lag
+		if player and player.has_method("set_camera_target"):
+			player.set_camera_target(player.global_position)
 
 func find_nearest_safe_position(pos: Vector2) -> Vector2:
 	if not terrain or not terrain.has_method("is_walkable"):
@@ -135,8 +135,20 @@ func ensure_player_safe_starting_position():
 		return  # No terrain system, use default position
 	
 	var current_pos = player.global_position
-	player.global_position = find_nearest_safe_position(current_pos)
-	print("Player starting at safe position: ", player.global_position)
+	# If the current (saved) position is already walkable, keep it
+	if terrain.is_walkable(current_pos):
+		print("Player position is walkable; keeping saved position: ", current_pos)
+		return
+    
+	# Otherwise, try to find a near safe tile around the current position first
+	var near_safe = find_nearest_safe_position(current_pos)
+	if near_safe != Vector2.ZERO:
+		player.global_position = near_safe
+		print("Player adjusted to nearest safe position: ", player.global_position)
+		return
+    
+	# If none found nearby, continue with broader searches below
+	print("Searching broader area for safe starting position...")
 	
 	# Try a more systematic search for walkable terrain
 	# First try a grid pattern around the world center

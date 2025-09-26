@@ -39,6 +39,8 @@ enum CharacterRace {
 # Game progress
 @export var world_position: Vector2 = Vector2.ZERO
 @export var save_timestamp: String = ""
+@export var explored_tiles: PackedVector2Array = PackedVector2Array() # Fog of war explored tile coordinates
+@export var last_reveal_radius: int = 0  # For future scaling or compatibility
 
 func _init():
 	save_timestamp = Time.get_datetime_string_from_system()
