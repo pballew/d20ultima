@@ -92,8 +92,7 @@ func _ready():
 	
 	print("Generated all initial sections")
 	
-	# Add boundary markers for debugging
-	add_boundary_markers()
+	# add_boundary_markers()  # Disabled: remove section boundary overlays
 	
 	# Debug info
 	print_debug_info()

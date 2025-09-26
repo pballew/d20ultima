@@ -99,7 +99,7 @@ func _ready():
 	# Debug output and visual markers
 	print_map_debug_info()
 	test_coordinate_conversions()
-	draw_section_boundaries()
+	# draw_section_boundaries()  # Disabled: remove white corner debug markers
 	
 	# Show terrain now that generation is complete
 	visible = true
