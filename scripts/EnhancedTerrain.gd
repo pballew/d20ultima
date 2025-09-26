@@ -648,15 +648,34 @@ func test_coordinate_conversions():
 func get_town_data_at_position(world_pos: Vector2) -> Dictionary:
 	# Convert world position to tile coordinate for robust comparison
 	var tile_pos := Vector2i(int(floor(world_pos.x / TILE_SIZE)), int(floor(world_pos.y / TILE_SIZE)))
+	
 	# Search all loaded sections for a matching town
 	for section_id in map_sections.keys():
 		var section = map_sections[section_id]
+		
+		# First check structured town_data
 		var towns = section.get("town_data")
 		if section and towns and towns is Dictionary and towns.size() > 0:
 			for local_pos in towns.keys():
 				var global_tile_pos = world_to_global_tile(local_pos, section_id)
 				if global_tile_pos == tile_pos:
 					return towns[local_pos]
+		
+		# Also check terrain_data for TOWN terrain type (fallback)
+		if section and section.terrain_data:
+			for local_pos in section.terrain_data.keys():
+				var terrain_type = section.terrain_data[local_pos]
+				if terrain_type == TerrainType.TOWN:
+					var global_tile_pos = world_to_global_tile(local_pos, section_id)
+					if global_tile_pos == tile_pos:
+						# Return basic town data for terrain-based towns
+						return {
+							"name": "Town at " + str(global_tile_pos),
+							"description": "A small settlement",
+							"population": 50 + (randi() % 100),
+							"services": ["Inn", "Shop", "Temple"]
+						}
+	
 	# Not found
 	return {}
 
