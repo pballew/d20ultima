@@ -149,11 +149,11 @@ func show_main_menu():
 				print("Fonts present in ", fonts_dir_path, ": ", listed)
 		ls.font = chosen_font
 		ls.font_size = 72
-		ls.font_color = Color(1.0, 0.85, 0.2) # gold
+		ls.font_color = Color(0, 1, 1) # aqua
 		ls.outline_size = 4
 		ls.outline_color = Color(0, 0, 0)
 		title_label.label_settings = ls
-		print("Styled title label with medieval font (size=72, gold, outline=4)")
+		print("Styled title label with medieval font (size=72, aqua, outline=4)")
 	else:
 		print("ERROR: Title label not found!")
 	
@@ -175,15 +175,16 @@ func show_main_menu():
 
 func _update_continue_button():
 	"""Update the continue button text and visibility based on save data"""
-	if SaveSystem.has_save_data():
-		var last_character_name = SaveSystem.get_last_character_name()
-		if last_character_name != "":
-			continue_btn.text = "Continue (" + last_character_name + ")"
-			continue_btn.visible = true
-		else:
-			continue_btn.visible = false
+	var has_data = SaveSystem.has_save_data()
+	var last_character_name = SaveSystem.get_last_character_name() if has_data else ""
+	print("[Continue Button] has_save_data=", has_data, ", last_character_name=", last_character_name)
+	if has_data and last_character_name != "":
+		continue_btn.text = "Journey Onward (" + last_character_name + ")"
+		continue_btn.visible = true
+		print("[Continue Button] Visible with last character; text=", continue_btn.text)
 	else:
 		continue_btn.visible = false
+		print("[Continue Button] Hidden (no save)")
 
 func _update_load_character_button():
 	"""Update the load character button based on available saved characters"""
