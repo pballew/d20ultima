@@ -52,8 +52,8 @@ func load_from_character_data(char_data: CharacterData):
 	attack_bonus = char_data.attack_bonus
 	damage_dice = char_data.damage_dice
 	armor_class = char_data.armor_class
-	# Center player on tile by adding half tile size offset
-	global_position = char_data.world_position + Vector2(TILE_SIZE/2, TILE_SIZE/2)
+	# world_position now stored as tile-center already (no half-tile offset needed)
+	global_position = char_data.world_position
 	frames_to_ignore_input = 1
 	print("Loaded character: ", character_name, " - Level ", level, " ", char_data.get_class_name())
 
@@ -73,8 +73,8 @@ func save_to_character_data() -> CharacterData:
 	char_data.attack_bonus = attack_bonus
 	char_data.damage_dice = damage_dice
 	char_data.armor_class = armor_class
-	# Save tile corner position (remove centering offset)
-	char_data.world_position = global_position - Vector2(TILE_SIZE/2, TILE_SIZE/2)
+	# Save as tile-centered position (no offset math)
+	char_data.world_position = global_position
 	char_data.save_timestamp = Time.get_datetime_string_from_system()
 	
 	return char_data
@@ -653,8 +653,8 @@ func debug_teleport_to_town():
 	print("- Found ", towns_found.size(), " towns total")
 	print("- Using town: '", town_name, "' at position: ", town_world_pos)
 	
-	# Teleport to town center
-	var new_pos = Vector2(town_world_pos.x + TILE_SIZE/2, town_world_pos.y + TILE_SIZE/2)
+	# Teleport to town center (positions are already treated as centered at tile origin)
+	var new_pos = town_world_pos
 	
 	print("Target town tile (top-left): ", town_world_pos)
 	print("Target player position (center): ", new_pos)

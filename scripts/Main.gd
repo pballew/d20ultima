@@ -87,7 +87,11 @@ func regenerate_map():
 		
 		# Create new terrain
 		var new_terrain = load("res://scripts/EnhancedTerrain.gd").new()
-		new_terrain.name = "EnhancedTerrain"
+		# Preserve original node name so other scripts still find it (they look for "EnhancedTerrainTileMap")
+		if terrain and terrain.name != "":
+			new_terrain.name = terrain.name
+		else:
+			new_terrain.name = "EnhancedTerrain"
 		add_child(new_terrain)
 		# Make sure new terrain is fully initialized
 		await get_tree().create_timer(0.1).timeout  # Give it time to generate
@@ -107,11 +111,11 @@ func regenerate_map():
 
 func find_nearest_safe_position(pos: Vector2) -> Vector2:
 	if not terrain or not terrain.has_method("is_walkable"):
-		return pos + Vector2(TILE_SIZE/2, TILE_SIZE/2)  # Center on tile
+		return pos  # Already using tile-centered coordinates
 	
 	# Check if current position is already safe
 	if terrain.is_walkable(pos):
-		return pos + Vector2(TILE_SIZE/2, TILE_SIZE/2)  # Center on tile
+		return pos  # Already centered
 		
 	# Search in expanding circles until we find a safe spot
 	for radius in range(1, 10):
@@ -120,10 +124,10 @@ func find_nearest_safe_position(pos: Vector2) -> Vector2:
 				if x*x + y*y <= radius*radius:  # Check in a circular pattern
 					var check_pos = pos + Vector2(x * TILE_SIZE, y * TILE_SIZE)
 					if terrain.is_walkable(check_pos):
-						return check_pos + Vector2(TILE_SIZE/2, TILE_SIZE/2)  # Center on tile
+						return check_pos  # Already centered
 	
 	# If no safe spot found, return center of map (centered on tile)
-	return Vector2(TILE_SIZE/2, TILE_SIZE/2)
+	return Vector2.ZERO
 
 func ensure_player_safe_starting_position():
 	# Find a safe starting position for the player (walkable terrain)
@@ -148,7 +152,7 @@ func ensure_player_safe_starting_position():
 				if abs(x) == search_size or abs(y) == search_size:
 					var test_pos = center_pos + Vector2(x * TILE_SIZE, y * TILE_SIZE)
 					if terrain.is_walkable(test_pos):
-						player.global_position = test_pos + Vector2(TILE_SIZE/2, TILE_SIZE/2)  # Center on tile
+						player.global_position = test_pos  # Already centered
 						print("Player moved to safe starting position: ", player.global_position)
 						return
 	
@@ -180,7 +184,7 @@ func ensure_player_safe_starting_position():
 	
 	for fallback_pos in fallback_positions:
 		if terrain.is_walkable(fallback_pos):
-			player.global_position = fallback_pos + Vector2(TILE_SIZE/2, TILE_SIZE/2)  # Center on tile
+			player.global_position = fallback_pos  # Already centered
 			print("Player moved to fallback safe position: ", player.global_position)
 			return
 	

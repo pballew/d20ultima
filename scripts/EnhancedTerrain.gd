@@ -1,5 +1,6 @@
-class_name EnhancedTerrain
 extends Node2D
+class_name EnhancedTerrain
+signal sections_generated  # Emitted after initial (or later) section generation completes
 
 # Enhanced terrain system with pixel art and animations
 const TILE_SIZE = 32
@@ -97,6 +98,8 @@ func _ready():
 		create_sprites_for_section(section_id)
 	
 	print("Generated all initial sections")
+	# Notify listeners (e.g., overlays) that sections are ready
+	emit_signal("sections_generated")
 	
 	# DEBUG: Manually place a town in center section for testing
 	var center_section_id = Vector2i(0, 0)
@@ -108,12 +111,13 @@ func _ready():
 		terrain_data[Vector2i(5, 5)] = TerrainType.TOWN  # Global position
 		print("=== DEBUG: Manually placed town at (5,5) in center section ===")
 		
-		# Also refresh the tilemap for this section to show the town
-		var tilemap_name = "TileMap_" + str(center_section_id.x) + "_" + str(center_section_id.y)
-		var existing_tilemap = get_node_or_null(tilemap_name)
-		if existing_tilemap:
-			populate_native_tilemap(existing_tilemap, center_section.terrain_data, center_section_id)
-			print("=== DEBUG: Refreshed tilemap to show manual town ===")
+		# Refresh visuals for this section since we directly edited terrain data
+		# (Legacy EnhancedTerrain uses per-tile sprites, so recreate sprites in that area)
+		for child in get_children():
+			if child is Sprite2D and child.position == Vector2(test_town_pos.x * TILE_SIZE, test_town_pos.y * TILE_SIZE):
+				child.queue_free()
+		create_town_sprite(Vector2(test_town_pos.x * TILE_SIZE, test_town_pos.y * TILE_SIZE), test_town_pos)
+		print("=== DEBUG: Refreshed sprites to show manual town ===")
 	else:
 		print("=== DEBUG ERROR: Center section not found! ===")
 	
@@ -485,8 +489,8 @@ func can_place_town_at_position(local_pos: Vector2i, section_id: Vector2i) -> bo
 	var terrain_name = TerrainType.keys()[terrain_type] if terrain_type < TerrainType.keys().size() else "UNKNOWN"
 	print("  Terrain type at ", local_pos, " is: ", terrain_type, " (", terrain_name, ")")
 	
-	# For debugging: Allow towns on any terrain type except water/lava
-	var forbidden_types = [TerrainType.WATER, TerrainType.LAVA]
+	# For debugging: Allow towns on any terrain type except major water bodies
+	var forbidden_types = [TerrainType.WATER, TerrainType.RIVER, TerrainType.LAKE, TerrainType.OCEAN]
 	var is_suitable = terrain_type not in forbidden_types
 	print("  Is suitable: ", is_suitable, " (terrain ", terrain_type, " not in forbidden: ", forbidden_types, ")")
 	return is_suitable
