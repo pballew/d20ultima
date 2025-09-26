@@ -60,17 +60,17 @@ func show_main_menu():
 	print("MainMenu visible: ", visible)
 	print("MainMenu modulate: ", modulate)
 	
-	# Override the existing background color to be bright
+	# Override the existing background color to be black
 	var background = get_node("Background")
 	if background:
-		background.color = Color.GREEN
-		print("Changed existing background to GREEN")
+		background.color = Color.BLACK
+		print("Changed existing background to BLACK")
 	else:
 		# Add a debug background to make the MainMenu visible
 		if not has_node("DebugBackground"):
 			var debug_bg = ColorRect.new()
 			debug_bg.name = "DebugBackground"
-			debug_bg.color = Color.DARK_GREEN
+			debug_bg.color = Color.BLACK
 			debug_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 			add_child(debug_bg)
 			move_child(debug_bg, 0)  # Move to back
@@ -86,10 +86,74 @@ func show_main_menu():
 		print("Title label visible: ", title_label.visible)
 		print("Title label text: ", title_label.text)
 		print("Title label modulate: ", title_label.modulate)
-		
-		# Make title label more visible
-		title_label.modulate = Color.YELLOW
-		print("Changed title label color to YELLOW")
+		# Stylize the title with a bundled medieval font when available, else SystemFont fallbacks
+		title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		var ls: LabelSettings
+		if title_label.label_settings != null:
+			ls = title_label.label_settings
+		else:
+			ls = LabelSettings.new()
+		# Try to load a bundled font from assets/fonts
+		var bundled_candidates := [
+			"res://assets/fonts/EagleLake-Regular.ttf",
+			"res://assets/fonts/CinzelDecorative-Regular.ttf",
+			"res://assets/fonts/CinzelDecorative-Black.ttf",
+			"res://assets/fonts/UnifrakturCook-Regular.ttf",
+			"res://assets/fonts/UnifrakturMaguntia-Regular.ttf",
+			"res://assets/fonts/MedievalSharp-Regular.ttf",
+			"res://assets/fonts/IMFellEnglishSC-Regular.ttf"
+		]
+		var chosen_font: Font = null
+		for path in bundled_candidates:
+			print("Trying font candidate: ", path)
+			# Load directly from bytes to avoid import-time errors in headless checks
+			if FileAccess.file_exists(path):
+				var bytes := FileAccess.get_file_as_bytes(path)
+				if bytes.size() > 0:
+					var ff := FontFile.new()
+					ff.data = bytes
+					chosen_font = ff
+					print("Loaded bundled medieval font from bytes: ", path, " (", bytes.size(), " bytes)")
+					break
+				else:
+					print("Font file read returned 0 bytes: ", path)
+			else:
+				print("Font candidate not found by FileAccess: ", path)
+		if chosen_font == null:
+			# Fallback to system fonts
+			var sys_font := SystemFont.new()
+			sys_font.font_names = [
+				"Eagle Lake", "EagleLake",
+				"UnifrakturCook", "UnifrakturMaguntia",
+				"Cinzel Decorative", "CinzelDecorative",
+				"IM FELL English SC", "IM FELL English",
+				"Old English Text MT", "Goudy Medieval",
+				"Blackletter", "Fraktur",
+				"MedievalSharp"
+			]
+			chosen_font = sys_font
+			print("Using SystemFont fallback; candidates: ", sys_font.font_names)
+			# List available files in res://assets/fonts for diagnostics
+			var fonts_dir_path = "res://assets/fonts"
+			var dir = DirAccess.open(fonts_dir_path)
+			if dir:
+				dir.list_dir_begin()
+				var fname = dir.get_next()
+				var listed = []
+				while fname != "":
+					if not fname.begins_with("."):
+						listed.append(fname)
+					fname = dir.get_next()
+				dir.list_dir_end()
+				print("Fonts present in ", fonts_dir_path, ": ", listed)
+		ls.font = chosen_font
+		ls.font_size = 72
+		ls.font_color = Color(1.0, 0.85, 0.2) # gold
+		ls.outline_size = 4
+		ls.outline_color = Color(0, 0, 0)
+		title_label.label_settings = ls
+		print("Styled title label with medieval font (size=72, gold, outline=4)")
 	else:
 		print("ERROR: Title label not found!")
 	
