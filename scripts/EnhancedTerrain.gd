@@ -644,6 +644,41 @@ func test_coordinate_conversions():
 	
 	print("=== End Coordinate Tests ===")
 
+# Return town data dictionary at a given world position (in pixels), or empty if none
+func get_town_data_at_position(world_pos: Vector2) -> Dictionary:
+	# Convert world position to tile coordinate for robust comparison
+	var tile_pos := Vector2i(int(floor(world_pos.x / TILE_SIZE)), int(floor(world_pos.y / TILE_SIZE)))
+	# Search all loaded sections for a matching town
+	for section_id in map_sections.keys():
+		var section = map_sections[section_id]
+		var towns = section.get("town_data")
+		if section and towns and towns is Dictionary and towns.size() > 0:
+			for local_pos in towns.keys():
+				var global_tile_pos = world_to_global_tile(local_pos, section_id)
+				if global_tile_pos == tile_pos:
+					return towns[local_pos]
+	# Not found
+	return {}
+
+# Debug helper to print towns within a section
+func print_section_towns(section_id: Vector2i):
+	print("=== SECTION TOWNS DEBUG for ", section_id, " ===")
+	if map_sections.has(section_id):
+		var section = map_sections[section_id]
+		var count := 0
+		var towns = section.get("town_data")
+		if section and towns and towns is Dictionary and towns.size() > 0:
+			count = towns.size()
+			for local_pos in towns.keys():
+				var town_data = towns[local_pos]
+				var global_pos = world_to_global_tile(local_pos, section_id)
+				var world_px = Vector2(global_pos.x * TILE_SIZE, global_pos.y * TILE_SIZE)
+				print("Town '", town_data.get("name", "Unknown"), "' at local ", local_pos, " global tile ", global_pos, " world pos ", world_px)
+		print("Section found, town count: ", count)
+	else:
+		print("Section ", section_id, " not found!")
+	print("=== END SECTION TOWNS DEBUG ===")
+
 func generate_enhanced_terrain():
 	# Legacy function - terrain generation now handled by generate_map_section()
 	# This function is kept for backward compatibility but does nothing

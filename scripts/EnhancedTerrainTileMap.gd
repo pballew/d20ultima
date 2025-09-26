@@ -706,24 +706,20 @@ func debug_load_sections_around(world_pos: Vector2, radius: int = 1):
 				print("  Loaded section: ", section_id)
 
 func get_town_data_at_position(world_pos: Vector2) -> Dictionary:
-	# Convert world position to tile coordinate
-	var tile_pos = Vector2i(int(world_pos.x / TILE_SIZE), int(world_pos.y / TILE_SIZE))
-	
-	# ALTERNATIVE APPROACH: Search all sections for town data at this world position
-	# since there seems to be a coordinate conversion issue
+	# Convert world position to tile coordinate (top-left of tile)
+	var tile_pos = Vector2i(int(floor(world_pos.x / TILE_SIZE)), int(floor(world_pos.y / TILE_SIZE)))
+    
+	# Search all sections for a town matching these tile coordinates
 	for section_id in map_sections.keys():
 		var section = map_sections[section_id]
-		
-		# Check all town positions in this section
-		for local_pos in section.town_data:
-			var town_data = section.town_data[local_pos]
+		# Skip if no towns recorded
+		if section.town_data.is_empty():
+			continue
+		for local_pos in section.town_data.keys():
 			var global_tile_pos = world_to_global_tile(local_pos, section_id)
-			var town_world_pos = Vector2(global_tile_pos.x * TILE_SIZE, global_tile_pos.y * TILE_SIZE)
-			
-			# If this town matches our target world position, return it
-			if town_world_pos == world_pos:
-				return town_data
-	
+			if global_tile_pos == tile_pos:
+				return section.town_data[local_pos]
+    
 	# Return empty dictionary if no town at this position
 	return {}
 

@@ -237,6 +237,20 @@ func _input(event):
 			get_viewport().set_input_as_handled()
 			return
 			
+		# Also test with F8 as backup
+		if event.keycode == KEY_F8:
+			print("*** F8 DETECTED AS BACKUP! ***")
+			debug_teleport_to_town()
+			get_viewport().set_input_as_handled()
+			return
+			
+		# Test simple P key for debugging
+		if event.keycode == KEY_P:
+			print("*** P KEY DETECTED FOR TELEPORT TEST! ***")
+			debug_teleport_to_town()
+			get_viewport().set_input_as_handled()
+			return
+			
 		# F10 for town search
 		if event.keycode == KEY_F10:
 			print("=== F10 FIND NEARBY TOWNS ===")
@@ -247,7 +261,9 @@ func _input(event):
 		# F11 for map debug
 		if event.keycode == KEY_F11:
 			print("=== F11 MAP DEBUG INFO ===")
-			var terrain = get_parent().get_node("EnhancedTerrainTileMap")
+			var terrain = get_parent().get_node_or_null("EnhancedTerrainTileMap")
+			if not terrain:
+				terrain = get_parent().get_node_or_null("EnhancedTerrain")
 			if terrain and terrain.has_method("print_map_debug_info"):
 				terrain.print_map_debug_info()
 				if terrain.has_method("test_coordinate_conversions"):
@@ -499,7 +515,9 @@ func find_nearby_towns():
 	"""Find and print all towns in a larger area around the player"""
 	print("=== F10 SEARCHING FOR NEARBY TOWNS ===")
 	print("Player position: ", global_position)
-	var terrain = get_parent().get_node("EnhancedTerrainTileMap")
+	var terrain = get_parent().get_node_or_null("EnhancedTerrainTileMap")
+	if not terrain:
+		terrain = get_parent().get_node_or_null("EnhancedTerrain")
 	if not terrain:
 		print("ERROR: No terrain found!")
 		return
@@ -570,12 +588,12 @@ func check_for_town_at_position(world_pos: Vector2):
 	var tile_coords = Vector2i(int(tile_top_left.x / TILE_SIZE), int(tile_top_left.y / TILE_SIZE))
 	print("DEBUG: Tile coordinates: ", tile_coords)
 	
-	# Get terrain system (try both possible node names)
-	var terrain = get_parent().get_node("EnhancedTerrainTileMap")
+	# Get terrain system (try both TileMap and legacy implementations)
+	var terrain = get_parent().get_node_or_null("EnhancedTerrainTileMap")
 	if not terrain:
-		terrain = get_parent().get_node("EnhancedTerrainTileMap")
+		terrain = get_parent().get_node_or_null("EnhancedTerrain")
 	
-	print("DEBUG: Terrain found: ", terrain != null)
+	print("DEBUG: Terrain found: ", terrain != null, " (", (terrain.name if terrain else "none"), ")")
 	if terrain and terrain.has_method("get_town_data_at_position"):
 		print("DEBUG: Calling get_town_data_at_position with tile top-left")
 		var town_data = terrain.get_town_data_at_position(tile_top_left)
@@ -615,64 +633,88 @@ func debug_teleport_to_town():
 	print("Current player position BEFORE teleport: ", global_position)
 	
 	# Find an actual town to teleport to from the terrain data
-	var terrain = get_parent().get_node("EnhancedTerrainTileMap")
+	print("Looking for terrain system...")
+	print("Parent node: ", get_parent().name if get_parent() else "null")
+	print("Parent children: ", get_parent().get_children().map(func(child): return child.name) if get_parent() else [])
+	
+	var terrain = get_parent().get_node_or_null("EnhancedTerrainTileMap")
+	print("EnhancedTerrainTileMap found: ", terrain != null)
+	if not terrain:
+		terrain = get_parent().get_node_or_null("EnhancedTerrain")
+		print("EnhancedTerrain found: ", terrain != null)
 	if not terrain:
 		print("ERROR: No terrain system found!")
 		return
-	
-	print("Terrain system found: ", terrain.name)
-	
-	# Search ALL sections for ANY town (much more comprehensive)
+
+	print("Terrain system found: ", terrain.name, " (class: ", terrain.get_class(), ")")	# Search ALL sections for ANY town using direct access to terrain data
 	print("Searching ALL sections for towns...")
 	var found_town = false
 	var town_world_pos = Vector2.ZERO
 	var town_name = "Unknown"
 	var towns_found = []
-	
-	# Use the terrain system's internal map sections to find actual towns
-	if terrain.has_method("get_script") and terrain.get_script():
-		# Try to access map_sections directly or use a debug method
-		print("Checking all loaded map sections for towns...")
+
+	# Access map sections directly if possible
+	if terrain.map_sections and terrain.map_sections.size() > 0:
+		print("Found ", terrain.map_sections.size(), " map sections, searching for towns...")
 		
-		# Check if terrain has a print_all_towns method we can use
-		if terrain.has_method("print_section_towns"):
-			# Check section (0,0) first since that's where the player starts
-			terrain.print_section_towns(Vector2i(0, 0))
-			terrain.print_section_towns(Vector2i(1, 0))
-			terrain.print_section_towns(Vector2i(0, 1))
-			terrain.print_section_towns(Vector2i(-1, 0))
-			terrain.print_section_towns(Vector2i(0, -1))
-	
-	# Try a different approach: systematically check known positions
-	print("Trying systematic position check...")
-	var sections_to_check = [
-		Vector2i(0, 0), Vector2i(1, 0), Vector2i(-1, 0), 
-		Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1),
-		Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1)
-	]
-	
-	# For each section, try some likely town positions
-	for section in sections_to_check:
-		var section_world_base = Vector2(section.x * 25 * TILE_SIZE, section.y * 20 * TILE_SIZE)
-		
-		# Try several positions within each section (towns should be 15-30 tiles apart)
-		for local_x in range(0, 25, 5):  # Check every 5th tile
-			for local_y in range(0, 20, 5):
-				var check_pos = section_world_base + Vector2(local_x * TILE_SIZE, local_y * TILE_SIZE)
+		# Search through all sections for towns
+		for section_id in terrain.map_sections.keys():
+			var section = terrain.map_sections[section_id]
+			
+			# Check if section has town data (new format)
+			var town_dict = section.get("town_data")
+			if section and town_dict and town_dict is Dictionary and town_dict.size() > 0:
+				print("Section ", section_id, " has ", town_dict.size(), " towns")
 				
-				if terrain.has_method("get_town_data_at_position"):
-					var town_data = terrain.get_town_data_at_position(check_pos)
-					if not town_data.is_empty():
-						town_name = town_data.get("name", "Found Town")
-						town_world_pos = check_pos
+				# Get the first available town
+				for local_pos in town_dict.keys():
+					var town_data = town_dict[local_pos]
+					
+					# Convert to world position using terrain's coordinate system
+					var global_tile_pos = terrain.world_to_global_tile(local_pos, section_id)
+					var world_pos = Vector2(global_tile_pos.x * TILE_SIZE, global_tile_pos.y * TILE_SIZE)
+					
+					town_name = town_data.get("name", "Found Town")
+					town_world_pos = world_pos
+					found_town = true
+					towns_found.append({"name": town_name, "pos": world_pos})
+					print("*** FOUND TOWN: '", town_name, "' at position: ", town_world_pos, " ***")
+					break
+			
+			# Also check terrain_data for TOWN terrain type (fallback/legacy)
+			if not found_town and section.terrain_data:
+				print("  Checking terrain_data for TOWN tiles...")
+				for local_pos in section.terrain_data.keys():
+					var terrain_type = section.terrain_data[local_pos]
+					if terrain_type == terrain.TerrainType.TOWN:
+						print("    FOUND TOWN TERRAIN at local pos: ", local_pos)
+						
+						# Convert to world position using terrain's coordinate system
+						var global_tile_pos = terrain.world_to_global_tile(local_pos, section_id)
+						var world_pos = Vector2(global_tile_pos.x * TILE_SIZE, global_tile_pos.y * TILE_SIZE)
+						
+						town_name = "Town at " + str(global_tile_pos)
+						town_world_pos = world_pos
 						found_town = true
-						towns_found.append({"name": town_name, "pos": check_pos})
-						print("*** FOUND TOWN: '", town_name, "' at position: ", town_world_pos, " ***")
+						towns_found.append({"name": town_name, "pos": world_pos})
+						print("*** FOUND TOWN TERRAIN: '", town_name, "' at position: ", town_world_pos, " ***")
 						break
+			
 			if found_town:
 				break
-		if found_town:
-			break
+	else:
+		print("No map_sections found or accessible, trying fallback method...")
+		
+		# Fallback: try the manual town at (5,5) that we know exists
+		var manual_town_pos = Vector2(5 * TILE_SIZE, 5 * TILE_SIZE)
+		if terrain.has_method("get_town_data_at_position"):
+			var town_data = terrain.get_town_data_at_position(manual_town_pos)
+			if not town_data.is_empty():
+				town_name = town_data.get("name", "Manual Town")
+				town_world_pos = manual_town_pos
+				found_town = true
+				towns_found.append({"name": town_name, "pos": manual_town_pos})
+				print("*** FOUND MANUAL TOWN: '", town_name, "' at position: ", town_world_pos, " ***")
 	
 	if not found_town:
 		print("No towns found in any section! Creating fallback town at origin")
