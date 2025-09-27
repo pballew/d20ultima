@@ -239,6 +239,28 @@ func get_class_hp_per_level() -> int:
 		_:
 			return 4
 
+# Roll hit dice based on character class for level-up HP gain
+# Rerolls any 1s for better survivability
+func roll_class_hit_die() -> int:
+	var roll = 1
+	match character_class:
+		CharacterClass.BARBARIAN:
+			while roll == 1:
+				roll = randi() % 12 + 1  # d12 (2-12, reroll 1s)
+		CharacterClass.FIGHTER, CharacterClass.RANGER:
+			while roll == 1:
+				roll = randi() % 10 + 1  # d10 (2-10, reroll 1s)
+		CharacterClass.CLERIC, CharacterClass.ROGUE:
+			while roll == 1:
+				roll = randi() % 8 + 1   # d8 (2-8, reroll 1s)
+		CharacterClass.WIZARD:
+			while roll == 1:
+				roll = randi() % 4 + 1   # d4 (2-4, reroll 1s)
+		_:
+			while roll == 1:
+				roll = randi() % 8 + 1   # Default d8 (2-8, reroll 1s)
+	return roll
+
 func get_stat_limits() -> Dictionary:
 	# Base D20 limits: 8-15 for point buy, but racial bonuses can push beyond 15
 	var base_min = 8
@@ -292,5 +314,147 @@ func get_character_summary() -> String:
 	summary += "AC: " + str(armor_class) + "\n"
 	summary += "Attack Bonus: +" + str(attack_bonus) + "\n"
 	summary += "Damage: " + damage_dice + "\n"
+	summary += "XP: " + str(experience) + "/" + str(get_xp_for_next_level()) + "\n"
 	
 	return summary
+
+# === EXPERIENCE POINT SYSTEM ===
+
+# D&D 5E-style XP progression table
+func get_xp_for_level(target_level: int) -> int:
+	if target_level <= 1:
+		return 0
+	
+	# Standard D&D XP progression
+	var xp_table = {
+		2: 300,
+		3: 900,
+		4: 2700,
+		5: 6500,
+		6: 14000,
+		7: 23000,
+		8: 34000,
+		9: 48000,
+		10: 64000,
+		11: 85000,
+		12: 100000,
+		13: 120000,
+		14: 140000,
+		15: 165000,
+		16: 195000,
+		17: 225000,
+		18: 265000,
+		19: 305000,
+		20: 355000
+	}
+	
+	if target_level in xp_table:
+		return xp_table[target_level]
+	else:
+		# For levels beyond 20, use exponential growth
+		return 355000 + (target_level - 20) * 50000
+
+# Get XP required for the next level
+func get_xp_for_next_level() -> int:
+	return get_xp_for_level(level + 1)
+
+# Get current XP progress as a percentage (0.0 to 1.0)
+func get_xp_progress() -> float:
+	var current_level_xp = get_xp_for_level(level)
+	var next_level_xp = get_xp_for_next_level()
+	var progress_in_level = experience - current_level_xp
+	var xp_needed_for_level = next_level_xp - current_level_xp
+	
+	if xp_needed_for_level <= 0:
+		return 1.0
+	
+	return float(progress_in_level) / float(xp_needed_for_level)
+
+# Add experience points and handle level-ups
+func gain_experience(xp_amount: int) -> bool:
+	var old_level = level
+	experience += xp_amount
+	
+	print("Gained ", xp_amount, " XP! Total: ", experience)
+	
+	# Check for level-ups
+	while experience >= get_xp_for_next_level() and level < 20:
+		level_up()
+	
+	# Return true if we leveled up
+	return level > old_level
+
+# Handle a single level-up
+func level_up():
+	var old_level = level
+	level += 1
+	
+	print("LEVEL UP! ", character_name, " is now level ", level)
+	
+	# Roll for HP increase based on class hit die
+	var hit_die_roll = roll_class_hit_die()
+	var con_modifier = get_stat_modifier(constitution)
+	var hp_gain = hit_die_roll + con_modifier
+	hp_gain = max(1, hp_gain)  # Minimum 1 HP per level
+	
+	max_health += hp_gain
+	current_health += hp_gain  # Heal on level-up
+	
+	print("Rolled ", hit_die_roll, " on hit die + ", con_modifier, " CON mod = ", hp_gain, " HP gained!")
+	print("New max HP: ", max_health)
+	
+	# Increase attack bonus every few levels (class-dependent)
+	var old_attack_bonus = attack_bonus
+	calculate_attack_bonus()
+	
+	if attack_bonus > old_attack_bonus:
+		print("Attack bonus increased to +", attack_bonus)
+	
+	# Recalculate all derived stats
+	calculate_derived_stats()
+	
+	print("Level ", old_level, " -> ", level, " complete!")
+
+# Calculate attack bonus based on level and class
+func calculate_attack_bonus():
+	match character_class:
+		CharacterClass.FIGHTER, CharacterClass.RANGER, CharacterClass.BARBARIAN:
+			# Full BAB progression
+			attack_bonus = level + get_stat_modifier(strength)
+		CharacterClass.CLERIC:
+			# 3/4 BAB progression
+			attack_bonus = int(level * 0.75) + get_stat_modifier(strength)
+		CharacterClass.ROGUE, CharacterClass.WIZARD:
+			# 1/2 BAB progression
+			attack_bonus = int(level * 0.5) + get_stat_modifier(dexterity if character_class == CharacterClass.ROGUE else strength)
+
+# Get stat modifier from ability score (D&D standard: -5 to +5)
+func get_stat_modifier(stat_value: int) -> int:
+	return (stat_value - 10) / 2
+
+# Award XP for various activities
+func award_xp_for_combat(enemy_level: int) -> int:
+	var base_xp = enemy_level * 100
+	var level_difference = enemy_level - level
+	
+	# Scale XP based on level difference
+	if level_difference > 0:
+		base_xp *= (1.0 + level_difference * 0.2)  # More XP for stronger enemies
+	elif level_difference < -2:
+		base_xp *= 0.5  # Less XP for much weaker enemies
+	
+	base_xp = max(10, int(base_xp))  # Minimum 10 XP
+	gain_experience(base_xp)
+	return base_xp
+
+# Award XP for town discovery
+func award_xp_for_exploration() -> int:
+	var xp_amount = 50 + level * 10  # Scales with level
+	gain_experience(xp_amount)
+	return xp_amount
+
+# Award XP for quest completion
+func award_xp_for_quest(difficulty_level: int) -> int:
+	var base_xp = difficulty_level * 200
+	gain_experience(base_xp)
+	return base_xp

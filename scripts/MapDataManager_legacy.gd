@@ -1,4 +1,4 @@
-class_name MapDataManager
+class_name MapDataManagerLegacy
 extends RefCounted
 
 # Manager for saving and loading map section data to persistent files

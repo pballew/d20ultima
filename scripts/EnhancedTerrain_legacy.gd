@@ -1,4 +1,4 @@
-class_name EnhancedTerrain
+class_name EnhancedTerrainLegacy
 extends Node2D
 
 # Enhanced terrain system with pixel art and animations

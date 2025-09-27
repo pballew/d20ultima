@@ -2,12 +2,13 @@ class_name Player
 extends Character
 
 @export var movement_speed: float = 200.0
-@export var encounters_enabled: bool = false  # Temporarily disable encounters (set true to re-enable)
+@export var encounters_enabled: bool = true  # Random encounters enabled!
 @export var camera_smooth_speed: float = 8.0  # Higher = snappier, lower = slower (increased for better responsiveness)
 const TILE_SIZE = 32
 var current_target_position: Vector2
 var is_moving: bool = false
 var is_in_combat: bool = false
+var character_class: CharacterData.CharacterClass = CharacterData.CharacterClass.FIGHTER  # Store character class for hit dice
 var camera: Camera2D
 var edge_threshold: int = 3  # Number of tiles from edge to start scrolling (reduced for more responsive scrolling)
 var frames_to_ignore_input: int = 0
@@ -39,6 +40,7 @@ func set_camera_target(target_pos: Vector2):
 
 func load_from_character_data(char_data: CharacterData):
 	character_name = char_data.character_name
+	character_class = char_data.character_class  # Store character class for hit dice calculations
 	strength = char_data.strength
 	dexterity = char_data.dexterity
 	constitution = char_data.constitution
@@ -77,6 +79,7 @@ func load_from_character_data(char_data: CharacterData):
 func save_to_character_data() -> CharacterData:
 	var char_data = CharacterData.new()
 	char_data.character_name = character_name
+	char_data.character_class = character_class
 	char_data.strength = strength
 	char_data.dexterity = dexterity
 	char_data.constitution = constitution
@@ -270,6 +273,13 @@ func _input(event):
 					terrain.test_coordinate_conversions()
 			get_viewport().set_input_as_handled()
 			return
+		
+		# F12 for hit dice test
+		if event.keycode == KEY_F12:
+			print("=== F12 HIT DICE TEST ===")
+			test_hit_dice_system()
+			get_viewport().set_input_as_handled()
+			return
 
 func _unhandled_input(event):
 	# This is now just a fallback - _input should catch debug keys first
@@ -455,15 +465,15 @@ func handle_input():
 			if terrain.is_walkable(new_position):
 				move_to_tile(new_position)
 				
-				# Check for random encounters (10% chance)
-				if encounters_enabled and randf() < 0.1:
-					encounter_started.emit()
+				# Check for random encounters with terrain-based rates
+				if encounters_enabled:
+					check_for_random_encounter(new_position, terrain)
 		else:
 			# If no terrain, allow movement (fallback)
 			move_to_tile(new_position)
 			
-			# Check for random encounters (10% chance)
-			if encounters_enabled and randf() < 0.1:
+			# Check for random encounters (default rate)
+			if encounters_enabled and randf() < 0.08:
 				encounter_started.emit()
 
 func enable_encounters():
@@ -747,6 +757,240 @@ func debug_teleport_to_town():
 	# Force a check for town at new position (pass the player's center position)
 	check_for_town_at_position(global_position)
 	print("=== END DEBUG TELEPORT ===")
+
+func test_hit_dice_system():
+	"""Test the hit dice system for all character classes"""
+	print("=== HIT DICE SYSTEM TEST ===")
+	
+	# Test each class's hit dice
+	print("\nTesting hit dice for each class:")
+	
+	# Test Fighter (d10) - current character class
+	print("Fighter (d10) - Testing with current character:")
+	var old_level = level
+	var old_max_health = max_health
+	
+	print("Before level-up: Level ", level, ", HP ", max_health, ", Class: ", CharacterData.CharacterClass.keys()[character_class])
+	
+	# Force a level-up to see hit dice in action
+	level_up()
+	
+	print("After level-up: Level ", level, ", HP ", max_health)
+	print("HP gained: ", (max_health - old_max_health))
+	
+	# Test hit dice rolls for other classes
+	print("\nTesting individual hit dice rolls:")
+	
+	# Temporarily change class and test rolls
+	var original_class = character_class
+	
+	# Test each class type
+	var classes_to_test = [
+		{"name": "Barbarian", "class": CharacterData.CharacterClass.BARBARIAN, "die": "d12"},
+		{"name": "Fighter", "class": CharacterData.CharacterClass.FIGHTER, "die": "d10"},
+		{"name": "Ranger", "class": CharacterData.CharacterClass.RANGER, "die": "d10"},
+		{"name": "Cleric", "class": CharacterData.CharacterClass.CLERIC, "die": "d8"},
+		{"name": "Rogue", "class": CharacterData.CharacterClass.ROGUE, "die": "d8"},
+		{"name": "Wizard", "class": CharacterData.CharacterClass.WIZARD, "die": "d4"}
+	]
+	
+	for class_test in classes_to_test:
+		character_class = class_test.class
+		var rolls = []
+		for i in range(5):
+			var roll = roll_class_hit_die()
+			rolls.append(roll)
+		print(class_test.name, " (", class_test.die, "): ", rolls)
+	
+	# Restore original class
+	character_class = original_class
+	
+	print("\n=== HIT DICE TEST COMPLETE ===")
+
+func show_xp_notification(xp_amount: int):
+	"""Show a floating XP notification above the player"""
+	var ui_layer = get_parent().get_node_or_null("UI")
+	if not ui_layer:
+		return
+	
+	# Create a temporary label for the XP notification
+	var xp_label = Label.new()
+	xp_label.text = "+" + str(xp_amount) + " XP"
+	xp_label.add_theme_color_override("font_color", Color.YELLOW)
+	xp_label.add_theme_font_size_override("font_size", 24)
+	xp_label.z_index = 100
+	
+	# Position it above the player
+	var player_screen_pos = get_viewport().get_camera_2d().to_screen_coordinates_no_centering(global_position)
+	xp_label.position = player_screen_pos - Vector2(50, 50)
+	
+	ui_layer.add_child(xp_label)
+	
+	# Animate the notification
+	var tween = create_tween()
+	tween.parallel().tween_property(xp_label, "position", xp_label.position + Vector2(0, -50), 1.5)
+	tween.parallel().tween_property(xp_label, "modulate:a", 0.0, 1.5)
+	tween.tween_callback(xp_label.queue_free)
+
+# Roll hit dice based on character class for level-up HP gain
+func roll_class_hit_die() -> int:
+	var roll = 1
+	match character_class:
+		CharacterData.CharacterClass.BARBARIAN:
+			while roll == 1:
+				roll = randi() % 12 + 1  # d12 (2-12, reroll 1s)
+		CharacterData.CharacterClass.FIGHTER, CharacterData.CharacterClass.RANGER:
+			while roll == 1:
+				roll = randi() % 10 + 1  # d10 (2-10, reroll 1s)
+		CharacterData.CharacterClass.CLERIC, CharacterData.CharacterClass.ROGUE:
+			while roll == 1:
+				roll = randi() % 8 + 1   # d8 (2-8, reroll 1s)
+		CharacterData.CharacterClass.WIZARD:
+			while roll == 1:
+				roll = randi() % 4 + 1   # d4 (2-4, reroll 1s)
+		_:
+			while roll == 1:
+				roll = randi() % 8 + 1   # Default d8 (2-8, reroll 1s)
+	return roll
+
+# Override level_up to use proper hit dice
+func level_up():
+	var old_level = level
+	level += 1
+	
+	print("LEVEL UP! ", character_name, " is now level ", level)
+	
+	# Roll for HP increase based on class hit die
+	var hit_die_roll = roll_class_hit_die()
+	var con_modifier = get_modifier(constitution)
+	var hp_gain = hit_die_roll + con_modifier
+	hp_gain = max(1, hp_gain)  # Minimum 1 HP per level
+	
+	max_health += hp_gain
+	current_health += hp_gain  # Heal on level-up
+	
+	print("Rolled ", hit_die_roll, " on hit die + ", con_modifier, " CON mod = ", hp_gain, " HP gained!")
+	print("New max HP: ", max_health)
+	
+	# Recalculate all derived stats
+	update_derived_stats()
+	
+	print("Level ", old_level, " -> ", level, " complete!")
+
+# Override the base character's gain_experience to add notifications
+func gain_experience(xp_amount: int) -> bool:
+	var leveled_up = super.gain_experience(xp_amount)
+	
+	# Show XP notification
+	show_xp_notification(xp_amount)
+	
+	# If we leveled up, show a level-up notification too
+	if leveled_up:
+		show_level_up_notification()
+	
+	return leveled_up
+
+func show_level_up_notification():
+	"""Show a prominent level-up notification"""
+	var ui_layer = get_parent().get_node_or_null("UI")
+	if not ui_layer:
+		return
+	
+	# Create level-up notification
+	var level_up_label = Label.new()
+	level_up_label.text = "LEVEL UP!"
+	level_up_label.add_theme_color_override("font_color", Color.GOLD)
+	level_up_label.add_theme_font_size_override("font_size", 36)
+	level_up_label.z_index = 101
+	
+	# Center it on screen
+	var viewport_size = get_viewport().size
+	level_up_label.position = viewport_size / 2 - Vector2(100, 0)
+	
+	ui_layer.add_child(level_up_label)
+	
+	# Animate the level-up notification
+	var tween = create_tween()
+	tween.tween_property(level_up_label, "scale", Vector2(1.2, 1.2), 0.3)
+	tween.tween_property(level_up_label, "scale", Vector2(1.0, 1.0), 0.3)
+	tween.tween_delay(1.0)
+	tween.tween_property(level_up_label, "modulate:a", 0.0, 0.5)
+	tween.tween_callback(level_up_label.queue_free)
+
+# === ENHANCED RANDOM ENCOUNTER SYSTEM ===
+
+func check_for_random_encounter(world_pos: Vector2, terrain_system):
+	"""Check for random encounters based on terrain type and player level"""
+	
+	# Get terrain type at current position
+	var terrain_type = get_terrain_type_at_position(world_pos, terrain_system)
+	var encounter_chance = get_encounter_chance_for_terrain(terrain_type)
+	
+	# Scale encounter chance based on player level (higher level = slightly more encounters)
+	var level_modifier = 1.0 + (level - 1) * 0.02  # +2% per level above 1
+	encounter_chance *= level_modifier
+	
+	# Cap maximum encounter chance at 25%
+	encounter_chance = min(encounter_chance, 0.25)
+	
+	print("Encounter check: terrain=", terrain_type, " base_chance=", get_encounter_chance_for_terrain(terrain_type), " final_chance=", encounter_chance)
+	
+	if randf() < encounter_chance:
+		print("Random encounter triggered!")
+		encounter_started.emit()
+
+func get_terrain_type_at_position(world_pos: Vector2, terrain_system) -> int:
+	"""Get the terrain type at a specific world position"""
+	if not terrain_system:
+		return 0  # Default to grass
+	
+	# Convert world position to tile coordinates
+	var tile_pos = Vector2i(int(world_pos.x / TILE_SIZE), int(world_pos.y / TILE_SIZE))
+	
+	# Try to get terrain type from the terrain system
+	if terrain_system.has_method("get_terrain_type_at_tile"):
+		return terrain_system.get_terrain_type_at_tile(tile_pos)
+	elif terrain_system.has_method("get_terrain_at_position"):
+		return terrain_system.get_terrain_at_position(world_pos)
+	
+	# Fallback: check global terrain_data if available
+	if terrain_system.has("terrain_data"):
+		if tile_pos in terrain_system.terrain_data:
+			return terrain_system.terrain_data[tile_pos]
+	
+	# Default to grass
+	return 0
+
+func get_encounter_chance_for_terrain(terrain_type: int) -> float:
+	"""Return encounter chance based on terrain type"""
+	# These should match the TerrainType enum values
+	match terrain_type:
+		0: return 0.06   # GRASS - moderate encounters
+		1: return 0.05   # DIRT - low encounters
+		2: return 0.03   # STONE - very low encounters
+		3: return 0.02   # WATER - very low encounters
+		4: return 0.12   # TREE/FOREST - high encounters
+		5: return 0.08   # MOUNTAIN - moderate-high encounters
+		6: return 0.07   # VALLEY - moderate encounters
+		7: return 0.04   # RIVER - low encounters
+		8: return 0.03   # LAKE - low encounters
+		9: return 0.01   # OCEAN - very low encounters
+		10: return 0.15  # FOREST - highest encounters
+		11: return 0.09  # HILLS - moderate-high encounters
+		12: return 0.05  # BEACH - low encounters
+		13: return 0.08  # SWAMP - moderate-high encounters
+		14: return 0.01  # TOWN - very low encounters (civilized)
+		_: return 0.06   # Default - moderate encounters
+
+func get_encounter_difficulty_for_terrain(terrain_type: int) -> String:
+	"""Return encounter difficulty modifier based on terrain"""
+	match terrain_type:
+		4, 10: return "forest"      # TREE/FOREST - wolves, bears, bandits
+		5, 11: return "mountain"    # MOUNTAIN/HILLS - goblins, orcs, giants
+		13: return "swamp"          # SWAMP - undead, reptiles
+		3, 7, 8: return "water"     # WATER areas - aquatic creatures
+		14: return "civilized"      # TOWN - bandits, guards
+		_: return "wilderness"      # Default - standard wilderness encounters
 
 func _exit_tree():
 	# Clean up PlayerIconFactory if it exists

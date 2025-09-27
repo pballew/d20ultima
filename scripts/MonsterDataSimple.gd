@@ -4,5 +4,5 @@ extends Resource
 @export var name: String = "Test Monster"
 @export var health: int = 10
 
-func get_name() -> String:
+func get_monster_name() -> String:
 	return name

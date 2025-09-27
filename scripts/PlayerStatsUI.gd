@@ -46,9 +46,10 @@ func update_all_stats():
 	health_label.text = str(player.current_health) + "/" + str(player.max_health)
 	health_bar.value = float(player.current_health) / float(player.max_health) * 100.0
 	
-	# Experience (for future use)
-	experience_label.text = "XP: " + str(player.experience)
-	experience_bar.value = float(player.experience % 1000) / 10.0  # Simple XP bar
+	# Experience progress to next level
+	var next_level_xp = player.get_xp_for_next_level()
+	experience_label.text = "XP: " + str(player.experience) + "/" + str(next_level_xp)
+	experience_bar.value = player.get_xp_progress() * 100.0  # Progress percentage
 	
 	# Core stats with modifiers
 	strength_label.text = "STR: " + str(player.strength) + " (" + format_modifier(player.get_modifier(player.strength)) + ")"

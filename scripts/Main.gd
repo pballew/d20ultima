@@ -205,7 +205,11 @@ func ensure_player_safe_starting_position():
 func _on_encounter_started():
 	print("A wild creature appears!")
 	
-	var enemy = create_random_enemy()
+	# Get terrain-based encounter difficulty
+	var terrain_type = get_current_terrain_type()
+	var difficulty_modifier = player.get_encounter_difficulty_for_terrain(terrain_type)
+	
+	var enemy = create_random_enemy(difficulty_modifier)
 	
 	# Enter combat mode - disable player movement
 	player.enter_combat()
@@ -213,11 +217,26 @@ func _on_encounter_started():
 	# Start combat
 	combat_manager.start_combat(player, [enemy])
 	combat_ui.show_combat([enemy])
+	
+	# Connect to combat end to award XP
+	if not combat_manager.combat_finished.is_connected(_on_combat_finished):
+		combat_manager.combat_finished.connect(_on_combat_finished)
 
-func create_random_enemy() -> Character:
-	# Create a random D20 monster with 1-2 hit dice
+func get_current_terrain_type() -> int:
+	"""Get the terrain type at player's current position"""
+	var terrain = get_node("EnhancedTerrainTileMap")
+	if not terrain:
+		terrain = get_node("EnhancedTerrain")
+	
+	if terrain and player:
+		return player.get_terrain_type_at_position(player.global_position, terrain)
+	
+	return 0  # Default to grass
+
+func create_random_enemy(difficulty_modifier: String = "wilderness") -> Character:
+	# Create a random D20 monster based on terrain and player level
 	var monster = Monster.new()
-	var monster_data = create_random_monster_data()
+	var monster_data = create_random_monster_data(difficulty_modifier)
 	monster.setup_from_monster_data(monster_data)
 	
 	# Add monster to scene tree
@@ -237,21 +256,96 @@ func create_random_enemy() -> Character:
 		print("Special Attacks: ", ", ".join(monster_data.special_attacks))
 	return monster
 
-func create_random_monster_data() -> MonsterData:
-	var monsters = [
+func create_random_monster_data(difficulty_modifier: String = "wilderness") -> MonsterData:
+	var monsters = []
+	
+	# Base encounters available everywhere
+	var base_monsters = [
 		create_goblin_data(),
 		create_kobold_data(),
-		create_skeleton_data(),
-		create_zombie_data(),
-		create_wolf_data(),
-		create_giant_rat_data(),
-		create_orc_data(),
-		create_hobgoblin_data(),
-		create_gnoll_data(),
-		create_stirge_data()
+		create_giant_rat_data()
 	]
 	
-	return monsters[randi() % monsters.size()]
+	# Terrain-specific encounters
+	match difficulty_modifier:
+		"forest":
+			monsters = [
+				create_wolf_data(),
+				create_wolf_data(),  # Wolves more common in forests
+				create_dire_wolf_data(),
+				create_bear_data(),
+				create_goblin_data(),
+				create_orc_data()
+			]
+		"mountain":
+			monsters = [
+				create_goblin_data(),
+				create_hobgoblin_data(),
+				create_orc_data(),
+				create_ogre_data(),
+				create_giant_rat_data()
+			]
+		"swamp":
+			monsters = [
+				create_skeleton_data(),
+				create_zombie_data(),
+				create_giant_rat_data(),
+				create_stirge_data(),
+				create_lizardfolk_data()
+			]
+		"water":
+			monsters = [
+				create_giant_rat_data(),  # Rats near water
+				create_stirge_data(),
+				create_lizardfolk_data()
+			]
+		"civilized":
+			monsters = [
+				create_bandit_data(),
+				create_giant_rat_data(),
+				create_kobold_data()
+			]
+		_: # "wilderness" or default
+			monsters = [
+				create_goblin_data(),
+				create_kobold_data(),
+				create_wolf_data(),
+				create_giant_rat_data(),
+				create_orc_data(),
+				create_gnoll_data(),
+				create_stirge_data()
+			]
+	
+	# Add some base monsters to all encounter tables (10% chance each)
+	if randf() < 0.3:
+		monsters.append(base_monsters[randi() % base_monsters.size()])
+	
+	# Scale monster difficulty based on player level
+	var selected_monster = monsters[randi() % monsters.size()]
+	scale_monster_to_player_level(selected_monster)
+	
+	return selected_monster
+
+func scale_monster_to_player_level(monster_data: MonsterData):
+	"""Scale monster stats based on player level"""
+	if player and player.level > 1:
+		var level_bonus = player.level - 1
+		
+		# Increase challenge rating
+		monster_data.challenge_rating += level_bonus / 2
+		
+		# Boost monster stats slightly
+		var stat_bonus = level_bonus
+		monster_data.strength += stat_bonus
+		monster_data.constitution += stat_bonus
+		
+		# Increase HP
+		var hp_bonus = level_bonus * 3
+		var current_hp = monster_data.calculate_hit_points()
+		# We can't directly modify calculated HP, but we can boost constitution
+		monster_data.constitution += hp_bonus / 4  # Approximate HP boost via CON
+		
+		print("Scaled ", monster_data.monster_name, " to player level ", player.level)
 
 func create_goblin_data() -> MonsterData:
 	var data = MonsterData.new()
@@ -640,6 +734,178 @@ func create_stirge_data() -> MonsterData:
 	
 	return data
 
+# === NEW TERRAIN-SPECIFIC MONSTERS ===
+
+func create_dire_wolf_data() -> MonsterData:
+	var data = MonsterData.new()
+	data.monster_name = "Dire Wolf"
+	data.monster_type = MonsterData.MonsterType.ANIMAL
+	data.size = MonsterData.Size.LARGE
+	data.hit_dice = "6d8+18"
+	data.challenge_rating = 3
+	
+	data.strength = 25
+	data.dexterity = 15
+	data.constitution = 17
+	data.intelligence = 2
+	data.wisdom = 12
+	data.charisma = 10
+	
+	data.base_attack_bonus = 4
+	data.natural_armor = 2
+	data.damage_dice = "1d8+7"
+	data.num_attacks = 1
+	
+	data.fortitude_base = 5
+	data.reflex_base = 5
+	data.will_base = 2
+	
+	data.skills = {"Hide": 2, "Listen": 7, "Move Silently": 4, "Spot": 7, "Survival": 7}
+	data.special_attacks = ["Trip"]
+	data.special_qualities = ["Scent", "Low-light Vision"]
+	
+	data.description = "Dire wolves are efficient pack hunters that kill anything they can catch."
+	data.combat_behavior = "Dire wolves prefer to attack in packs, surrounding and attacking a single opponent."
+	data.environment = "Temperate forests"
+	
+	return data
+
+func create_bear_data() -> MonsterData:
+	var data = MonsterData.new()
+	data.monster_name = "Black Bear"
+	data.monster_type = MonsterData.MonsterType.ANIMAL
+	data.size = MonsterData.Size.MEDIUM
+	data.hit_dice = "3d8+6"
+	data.challenge_rating = 2
+	
+	data.strength = 19
+	data.dexterity = 13
+	data.constitution = 15
+	data.intelligence = 2
+	data.wisdom = 12
+	data.charisma = 6
+	
+	data.base_attack_bonus = 2
+	data.natural_armor = 2
+	data.damage_dice = "1d4+4"
+	data.num_attacks = 3  # 2 claws + 1 bite
+	
+	data.fortitude_base = 5
+	data.reflex_base = 4
+	data.will_base = 1
+	
+	data.skills = {"Listen": 4, "Spot": 4, "Swim": 8}
+	data.special_attacks = []
+	data.special_qualities = ["Scent", "Low-light Vision"]
+	
+	data.description = "Bears are omnivores with an exceptional sense of smell."
+	data.combat_behavior = "Bears attack with claws and bite when threatened or protecting cubs."
+	data.environment = "Temperate forests"
+	
+	return data
+
+func create_ogre_data() -> MonsterData:
+	var data = MonsterData.new()
+	data.monster_name = "Ogre"
+	data.monster_type = MonsterData.MonsterType.HUMANOID
+	data.size = MonsterData.Size.LARGE
+	data.hit_dice = "4d8+8"
+	data.challenge_rating = 3
+	
+	data.strength = 21
+	data.dexterity = 8
+	data.constitution = 15
+	data.intelligence = 6
+	data.wisdom = 10
+	data.charisma = 7
+	
+	data.base_attack_bonus = 3
+	data.natural_armor = 5
+	data.damage_dice = "2d6+7"
+	data.num_attacks = 1
+	
+	data.fortitude_base = 4
+	data.reflex_base = 1
+	data.will_base = 1
+	
+	data.skills = {"Climb": 4, "Listen": 2, "Spot": 2}
+	data.special_attacks = []
+	data.special_qualities = ["Darkvision 60 ft.", "Low-light Vision"]
+	
+	data.description = "Ogres are big, ugly humanoids that stand over nine feet tall."
+	data.combat_behavior = "Ogres fight with massive clubs, overwhelming opponents with brute strength."
+	data.environment = "Temperate hills and mountains"
+	
+	return data
+
+func create_lizardfolk_data() -> MonsterData:
+	var data = MonsterData.new()
+	data.monster_name = "Lizardfolk"
+	data.monster_type = MonsterData.MonsterType.HUMANOID
+	data.size = MonsterData.Size.MEDIUM
+	data.hit_dice = "2d8+2"
+	data.challenge_rating = 1
+	
+	data.strength = 13
+	data.dexterity = 10
+	data.constitution = 13
+	data.intelligence = 9
+	data.wisdom = 12
+	data.charisma = 10
+	
+	data.base_attack_bonus = 1
+	data.natural_armor = 5
+	data.damage_dice = "1d6+1"
+	data.num_attacks = 1
+	
+	data.fortitude_base = 3
+	data.reflex_base = 0
+	data.will_base = 3
+	
+	data.skills = {"Balance": 4, "Jump": 4, "Swim": 8}
+	data.special_attacks = []
+	data.special_qualities = ["Hold Breath"]
+	
+	data.description = "Lizardfolk are primitive reptilian humanoids that lurk in swamps and marshes."
+	data.combat_behavior = "Lizardfolk fight with simple weapons, preferring ambush tactics."
+	data.environment = "Temperate marshes"
+	
+	return data
+
+func create_bandit_data() -> MonsterData:
+	var data = MonsterData.new()
+	data.monster_name = "Bandit"
+	data.monster_type = MonsterData.MonsterType.HUMANOID
+	data.size = MonsterData.Size.MEDIUM
+	data.hit_dice = "1d8+1"
+	data.challenge_rating = 1
+	
+	data.strength = 11
+	data.dexterity = 12
+	data.constitution = 12
+	data.intelligence = 10
+	data.wisdom = 11
+	data.charisma = 10
+	
+	data.base_attack_bonus = 1
+	data.natural_armor = 2  # Leather armor
+	data.damage_dice = "1d6"
+	data.num_attacks = 1
+	
+	data.fortitude_base = 0
+	data.reflex_base = 2
+	data.will_base = 0
+	
+	data.skills = {"Hide": 3, "Listen": 3, "Move Silently": 3, "Spot": 3}
+	data.special_attacks = []
+	data.special_qualities = []
+	
+	data.description = "Bandits are outlaws who prey on travelers and merchants."
+	data.combat_behavior = "Bandits prefer ambush tactics and will flee if outmatched."
+	data.environment = "Any land"
+	
+	return data
+
 func create_monster_texture(monster_name: String) -> ImageTexture:
 	var image = Image.create(64, 64, false, Image.FORMAT_RGB8)
 	
@@ -679,6 +945,21 @@ func create_monster_texture(monster_name: String) -> ImageTexture:
 		"Stirge":
 			primary_color = Color(0.4, 0.2, 0.2)  # Dark red
 			secondary_color = Color(0.2, 0.1, 0.1)  # Darker red
+		"Dire Wolf":
+			primary_color = Color(0.2, 0.2, 0.2)  # Dark fur
+			secondary_color = Color(0.1, 0.1, 0.1)  # Black fur
+		"Black Bear":
+			primary_color = Color(0.2, 0.1, 0.1)  # Black fur
+			secondary_color = Color(0.3, 0.2, 0.1)  # Brown patches
+		"Ogre":
+			primary_color = Color(0.5, 0.4, 0.3)  # Rough skin
+			secondary_color = Color(0.3, 0.2, 0.1)  # Crude clothing
+		"Lizardfolk":
+			primary_color = Color(0.3, 0.5, 0.3)  # Green scales
+			secondary_color = Color(0.2, 0.4, 0.2)  # Darker green
+		"Bandit":
+			primary_color = Color(0.7, 0.6, 0.5)  # Human skin
+			secondary_color = Color(0.4, 0.3, 0.2)  # Leather armor
 		_:
 			primary_color = Color(0.5, 0.5, 0.5)
 			secondary_color = Color(0.3, 0.3, 0.3)
@@ -835,8 +1116,14 @@ func _on_combat_finished(player_won: bool):
 	# Exit combat mode - re-enable player movement
 	player.exit_combat()
 	
-	# Handle player defeat - respawn with full health
-	if not player_won:
+	# Handle combat outcome
+	if player_won:
+		# Award XP for victory - base amount varies by enemy type
+		var xp_reward = 25 + randi() % 26  # 25-50 XP for winning
+		player.add_experience(xp_reward)
+		print("Combat victory! Gained ", xp_reward, " XP")
+	else:
+		# Handle player defeat - respawn with full health
 		respawn_player()
 	
 	# Clean up enemy nodes after combat

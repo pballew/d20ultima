@@ -241,7 +241,24 @@ func show_town_dialog(town_data: Dictionary):
 
 func _on_town_entered(town_data: Dictionary):
 	"""Handle when player chooses to enter a town"""
-	print("Player entered town: ", town_data.get("name", "Unknown"))
+	var town_name = town_data.get("name", "Unknown")
+	print("Player entered town: ", town_name)
+	
+	# Award exploration XP
+	var game_scene = get_node("GameScene")
+	if game_scene:
+		var player = game_scene.get_node("Player")
+		if player and player.has_method("award_xp_for_exploration"):
+			var xp_gained = player.award_xp_for_exploration()
+			print("Awarded ", xp_gained, " XP for discovering ", town_name, "!")
+			
+			# Update the player stats UI
+			var ui = game_scene.get_node("UI")
+			if ui:
+				var player_stats_ui = ui.get_node("PlayerStatsUI")
+				if player_stats_ui and player_stats_ui.has_method("update_all_stats"):
+					player_stats_ui.update_all_stats()
+	
 	# TODO: Add town interior scene or town management interface
 	# For now, just show a simple message
 	print("Town entered! (Town interior not yet implemented)")
