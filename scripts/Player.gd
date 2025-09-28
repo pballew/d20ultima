@@ -280,6 +280,12 @@ func _input(event):
 			test_hit_dice_system()
 			get_viewport().set_input_as_handled()
 			return
+			
+		# Tab to toggle combat log
+		if event.keycode == KEY_TAB:
+			toggle_combat_log()
+			get_viewport().set_input_as_handled()
+			return
 
 func _unhandled_input(event):
 	# This is now just a fallback - _input should catch debug keys first
@@ -820,9 +826,18 @@ func show_xp_notification(xp_amount: int):
 	xp_label.add_theme_font_size_override("font_size", 24)
 	xp_label.z_index = 100
 	
-	# Position it above the player
-	var player_screen_pos = get_viewport().get_camera_2d().to_screen_coordinates_no_centering(global_position)
-	xp_label.position = player_screen_pos - Vector2(50, 50)
+	# Position it above the player using proper Godot 4 method
+	var camera = get_viewport().get_camera_2d()
+	if camera:
+		# Convert world position to screen coordinates using Godot 4's proper method
+		var viewport_size = get_viewport().get_visible_rect().size
+		var world_offset = global_position - camera.global_position
+		var screen_offset = world_offset * camera.zoom
+		var player_screen_pos = viewport_size / 2 + screen_offset
+		xp_label.position = player_screen_pos - Vector2(50, 50)
+	else:
+		# Fallback if no camera - just position relative to viewport center
+		xp_label.position = get_viewport().size / 2 - Vector2(50, 50)
 	
 	ui_layer.add_child(xp_label)
 	
@@ -953,10 +968,11 @@ func get_terrain_type_at_position(world_pos: Vector2, terrain_system) -> int:
 	elif terrain_system.has_method("get_terrain_at_position"):
 		return terrain_system.get_terrain_at_position(world_pos)
 	
-	# Fallback: check global terrain_data if available
-	if terrain_system.has("terrain_data"):
-		if tile_pos in terrain_system.terrain_data:
-			return terrain_system.terrain_data[tile_pos]
+	# Fallback: check global terrain_data if available (use get() for safe property access)
+	var terrain_data = terrain_system.get("terrain_data")
+	if terrain_data != null and terrain_data is Dictionary:
+		if tile_pos in terrain_data:
+			return terrain_data[tile_pos]
 	
 	# Default to grass
 	return 0
@@ -991,6 +1007,17 @@ func get_encounter_difficulty_for_terrain(terrain_type: int) -> String:
 		3, 7, 8: return "water"     # WATER areas - aquatic creatures
 		14: return "civilized"      # TOWN - bandits, guards
 		_: return "wilderness"      # Default - standard wilderness encounters
+
+func toggle_combat_log():
+	"""Toggle the combat log visibility"""
+	var main_scene = get_tree().get_first_node_in_group("main")
+	if not main_scene:
+		main_scene = get_parent()
+	if main_scene and main_scene.has_method("get_node"):
+		var combat_ui = main_scene.get_node_or_null("UI/CombatUI")
+		if combat_ui and combat_ui.has_method("_on_log_toggle_pressed"):
+			combat_ui._on_log_toggle_pressed()
+			print("Combat log toggled via Tab key")
 
 func _exit_tree():
 	# Clean up PlayerIconFactory if it exists

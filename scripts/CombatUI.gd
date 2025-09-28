@@ -1,22 +1,50 @@
 extends Control
 
-@onready var player_health_label = $VBoxContainer/PlayerStats/HealthLabel
-@onready var player_stats_label = $VBoxContainer/PlayerStats/StatsLabel
-@onready var enemy_container = $VBoxContainer/EnemyStats/EnemyContainer
 @onready var combat_log = $VBoxContainer/CombatLogContainer/CombatLog
 @onready var combat_log_container = $VBoxContainer/CombatLogContainer
 @onready var action_buttons = $VBoxContainer/ActionButtons
 @onready var attack_button = $VBoxContainer/ActionButtons/AttackButton
-@onready var defend_button = $VBoxContainer/ActionButtons/DefendButton
+@onready var retreat_button = $VBoxContainer/ActionButtons/RetreatButton
+@onready var log_toggle_button = $VBoxContainer/LogToggleContainer/LogToggleButton
+@onready var panel = $Panel
+@onready var vbox_container = $VBoxContainer
 
 var player: Player
 var combat_manager: CombatManager
 var current_enemies: Array = []
+var log_visible: bool = true
 
 func _ready():
-	hide()
-	attack_button.pressed.connect(_on_attack_pressed)
-	defend_button.pressed.connect(_on_defend_pressed)
+	# Only hide action buttons initially, keep log toggle available
+	if action_buttons:
+		action_buttons.hide()
+	if attack_button:
+		attack_button.pressed.connect(_on_attack_pressed)
+	if retreat_button:
+		retreat_button.pressed.connect(_on_retreat_pressed)
+	if log_toggle_button:
+		log_toggle_button.pressed.connect(_on_log_toggle_pressed)
+	
+	# Set smaller font size and reduce vertical spacing for combat log
+	if combat_log:
+		combat_log.add_theme_font_size_override("font_size", 14)
+		combat_log.add_theme_constant_override("line_spacing", -2)
+	
+	# Initially show the log
+	log_visible = true
+	combat_log_container.custom_minimum_size = Vector2(0, 240)
+
+# Method to hide combat action buttons when combat is not in progress, but keep log visible
+func force_hide_combat_ui():
+	if action_buttons.visible:
+		print("Hiding combat action buttons - combat not in progress")
+		action_buttons.hide()
+		current_enemies.clear()
+
+# Check if combat action buttons should be visible based on combat state
+func validate_visibility():
+	if player and player.has_method("get") and not player.get("is_in_combat"):
+		force_hide_combat_ui()
 
 func setup_combat_ui(p: Player, cm: CombatManager):
 	player = p
@@ -34,82 +62,53 @@ func setup_combat_ui(p: Player, cm: CombatManager):
 
 func show_combat(enemies: Array):
 	current_enemies = enemies
-	create_enemy_health_displays()
-	update_ui()
 	
+	# Auto-show the combat log when combat begins
+	if not log_visible:
+		log_visible = true
+		update_log_toggle_display()
+		print("COMBAT LOG: Auto-shown for new combat")
+	
+	# Don't clear the combat log here - the CombatManager has already sent initial messages
+	# The combat_message signal has populated the log with initiative and combat info
 	show()
+	action_buttons.show()  # Ensure action buttons are visible for new combat
 
-func create_enemy_health_displays():
-	# Clear existing enemy displays
-	for child in enemy_container.get_children():
-		child.queue_free()
-	
-	# Create health displays for each enemy
-	for i in range(current_enemies.size()):
-		var enemy = current_enemies[i]
-		var enemy_label = RichTextLabel.new()
-		enemy_label.name = "Enemy" + str(i) + "Label"
-		enemy_label.custom_minimum_size = Vector2(0, 25)
-		enemy_label.fit_content = true
-		enemy_label.scroll_active = false
-		enemy_container.add_child(enemy_label)
-		
-		# Connect to enemy health changes
-		if not enemy.health_changed.is_connected(_on_enemy_health_changed):
-			enemy.health_changed.connect(_on_enemy_health_changed)
-	
-	update_enemy_displays()
-
-func update_enemy_displays():
-	var labels = enemy_container.get_children()
-	for i in range(min(current_enemies.size(), labels.size())):
-		var enemy = current_enemies[i]
-		var label = labels[i]
-		
-		if is_instance_valid(enemy):
-			if enemy.current_health <= 0:
-				label.text = enemy.character_name + " (Defeated)"
-			else:
-				label.text = enemy.character_name
-			label.visible = true
-
-func update_ui():
-	if player:
-		player_stats_label.text = "AC: %d | Level: %d" % [player.armor_class, player.level]
-	
-	update_enemy_displays()
-
+# Player and enemy health changes are now handled by combat log messages
 func _on_player_health_changed(new_health: int, max_health: int):
-	update_ui()
+	# Health changes will be logged via combat messages
+	pass
 
 func _on_enemy_health_changed(new_health: int, max_health: int):
-	update_enemy_displays()
+	# Health changes will be logged via combat messages
+	pass
 
 func _on_turn_changed(current_character: Character):
 	var is_player_turn = current_character is Player
 	action_buttons.visible = is_player_turn
 	
-	if is_player_turn:
-		add_combat_log(current_character.character_name + "'s turn")
-	else:
-		add_combat_log(current_character.character_name + "'s turn")
+	# Turn messages are now handled by CombatManager via combat_message signal
 
 func _on_combat_finished(player_won: bool):
 	if player_won:
 		add_combat_log("Victory!")
 	else:
-		add_combat_log("Defeat!")
+		# Check if this was a retreat (last message contains "retreat")
+		var last_message = combat_log.text.split("\n")[-2] if combat_log.text.contains("retreat") else ""
+		if not last_message.contains("retreat"):
+			add_combat_log("Defeat!")
+		# If it was a retreat, the retreat message is already shown
 	
 	# Clear enemy references to prevent accessing freed objects
 	current_enemies.clear()
 	
-	# Clear enemy health displays
-	for child in enemy_container.get_children():
-		child.queue_free()
+	# Hide only action buttons after combat, keep log visible
+	await get_tree().create_timer(1.0).timeout
+	action_buttons.hide()
 	
-	# Hide combat UI after a delay
-	await get_tree().create_timer(2.0).timeout
-	hide()
+	# Ensure player exits combat state
+	if player and player.has_method("exit_combat"):
+		player.exit_combat()
 
 func _on_attack_pressed():
 	if current_enemies.size() > 0:
@@ -119,11 +118,14 @@ func _on_attack_pressed():
 			var target = alive_enemies[0]
 			combat_manager.player_attack(target)
 
-func _on_defend_pressed():
-	combat_manager.player_defend()
+func _on_retreat_pressed():
+	combat_manager.player_retreat()
 
 func _on_combat_message(message: String):
-	add_combat_log(message)
+	if message == "CLEAR_LOG":
+		combat_log.text = ""
+	else:
+		add_combat_log(message)
 
 func add_combat_log(text: String):
 	combat_log.text += text + "\n"
@@ -136,3 +138,38 @@ func add_combat_log(text: String):
 	# Auto-scroll to bottom
 	await get_tree().process_frame
 	combat_log_container.scroll_vertical = combat_log_container.get_v_scroll_bar().max_value
+
+func _on_log_toggle_pressed():
+	log_visible = !log_visible
+	update_log_toggle_display()
+
+func update_log_toggle_display():
+	if log_visible:
+		log_toggle_button.text = "▼ Combat Log"
+		combat_log_container.visible = true
+		combat_log_container.custom_minimum_size = Vector2(0, 240)
+		combat_log_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		# Show full panel
+		if panel:
+			panel.visible = true
+			panel.offset_top = -300.0
+		if vbox_container:
+			vbox_container.offset_top = -280.0
+		print("COMBAT LOG: SHOWN")
+	else:
+		log_toggle_button.text = "▶ Combat Log"
+		combat_log_container.visible = false
+		combat_log_container.custom_minimum_size = Vector2(0, 0)
+		combat_log_container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		# Shrink panel to just show buttons, or hide it entirely if no combat
+		if panel:
+			if action_buttons.visible:
+				# Combat is active, show smaller panel for buttons only
+				panel.visible = true
+				panel.offset_top = -80.0
+			else:
+				# No combat, hide the panel entirely
+				panel.visible = false
+		if vbox_container:
+			vbox_container.offset_top = -60.0
+		print("COMBAT LOG: HIDDEN")

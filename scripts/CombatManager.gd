@@ -14,12 +14,28 @@ func start_combat(player: Character, enemies: Array):
 	combat_participants.append(player)
 	combat_participants.append_array(enemies)
 	
+	# Signal to clear the combat log before starting new combat
+	combat_message.emit("CLEAR_LOG")
+	
+	# Emit initial combat setup messages
+	combat_message.emit("=== COMBAT BEGINS ===")
+	
+	# Add player stats to log
+	combat_message.emit("Player: " + player.character_name + " (HP: " + str(player.current_health) + "/" + str(player.max_health) + ", AC: " + str(player.armor_class) + ", Level: " + str(player.level) + ")")
+	
+	# Add enemy stats to log
+	for enemy in enemies:
+		combat_message.emit("Enemy: " + enemy.character_name + " (HP: " + str(enemy.current_health) + "/" + str(enemy.max_health) + ", AC: " + str(enemy.armor_class) + ")")
+	
+	combat_message.emit("")
+	combat_message.emit("Initiative Rolls:")
+	
 	# 3.5 Initiative: 1d20 + Dex modifier
 	for participant in combat_participants:
 		var initiative_roll = randi_range(1, 20)
 		var dex_modifier = (participant.dexterity - 10) / 2
 		participant.initiative = initiative_roll + dex_modifier
-		print(participant.character_name, " rolls ", initiative_roll, " + ", dex_modifier, " = ", participant.initiative, " for initiative")
+		combat_message.emit(participant.character_name + " rolls " + str(initiative_roll) + " + " + str(dex_modifier) + " = " + str(participant.initiative) + " for initiative")
 	
 	# Sort by initiative (highest first)
 	combat_participants.sort_custom(func(a, b): return a.initiative > b.initiative)
@@ -27,11 +43,13 @@ func start_combat(player: Character, enemies: Array):
 	current_turn_index = -1  # Start at -1 so first next_turn() call goes to index 0
 	is_combat_active = true
 	
-	print("Combat started! Initiative order:")
+	combat_message.emit("")
+	combat_message.emit("Initiative Order:")
 	for i in range(combat_participants.size()):
 		var participant = combat_participants[i]
-		print(str(i + 1), ". ", participant.character_name, " (", participant.initiative, ")")
+		combat_message.emit(str(i + 1) + ". " + participant.character_name + " (" + str(participant.initiative) + ")")
 	
+	combat_message.emit("")
 	next_turn()
 
 func next_turn():
@@ -61,7 +79,8 @@ func next_turn():
 			break
 	
 	var current_character = combat_participants[current_turn_index]
-	print("\n", current_character.character_name, "'s turn")
+	combat_message.emit("")
+	combat_message.emit("=== " + current_character.character_name + "'s Turn ===")
 	turn_changed.emit(current_character)
 	
 	# If it's an enemy turn, handle AI
@@ -110,7 +129,7 @@ func perform_monster_attack(monster: Monster, target: Character):
 	if total_attack >= target.armor_class:
 		var damage = monster.roll_dice(monster.damage_dice) + str_modifier
 		target.take_damage(damage, "physical")
-		combat_message.emit("Hit! Dealt " + str(damage) + " damage to " + target.character_name)
+		combat_message.emit("Hit! Dealt " + str(damage) + " damage to " + target.character_name + " (" + str(target.current_health) + "/" + str(target.max_health) + " HP)")
 	else:
 		combat_message.emit("Attack missed! (rolled " + str(total_attack) + " vs AC " + str(target.armor_class) + ")")
 
@@ -125,7 +144,7 @@ func perform_regular_attack(enemy: Character, target: Character):
 	if total_attack >= target.armor_class:
 		var damage = enemy.roll_dice(enemy.damage_dice) + str_modifier
 		target.take_damage(damage, "physical")
-		combat_message.emit("Hit! Dealt " + str(damage) + " damage to " + target.character_name)
+		combat_message.emit("Hit! Dealt " + str(damage) + " damage to " + target.character_name + " (" + str(target.current_health) + "/" + str(target.max_health) + " HP)")
 	else:
 		combat_message.emit("Attack missed!")
 
@@ -143,7 +162,7 @@ func use_monster_special_attack(monster: Monster, target: Character, attack_name
 			if total_attack >= target.armor_class:
 				var damage = monster.roll_dice(monster.damage_dice) + str_modifier + monster.roll_dice("1d6")  # Sneak attack damage
 				target.take_damage(damage, "physical")
-				combat_message.emit("Sneak attack! Dealt " + str(damage) + " damage!")
+				combat_message.emit("Sneak attack! Dealt " + str(damage) + " damage to " + target.character_name + " (" + str(target.current_health) + "/" + str(target.max_health) + " HP)")
 			else:
 				combat_message.emit("Sneak attack missed!")
 		
@@ -232,6 +251,36 @@ func player_defend():
 	combat_message.emit(player.character_name + " takes the total defense action (+4 AC until next turn)")
 	# TODO: Implement defense bonus
 	next_turn()
+
+func player_retreat():
+	if not is_combat_active:
+		return
+	
+	var player = combat_participants[current_turn_index]
+	if not player is Player:
+		return
+	
+	# Calculate retreat chance based on player level and enemy count
+	var enemy_count = combat_participants.size() - 1  # Subtract 1 for the player
+	var retreat_chance = 0.6 + (player.level * 0.05) - (enemy_count * 0.15)
+	retreat_chance = clamp(retreat_chance, 0.2, 0.9)  # Between 20% and 90%
+	
+	combat_message.emit(player.character_name + " attempts to retreat... (Chance: " + str(int(retreat_chance * 100)) + "%)")
+	
+	# Roll the dice and show the result
+	var retreat_roll = randf()
+	var roll_percentage = int(retreat_roll * 100) + 1  # Convert 0-99 to 1-100
+	combat_message.emit("Retreat roll: " + str(roll_percentage) + "% (needed " + str(int(retreat_chance * 100)) + "% or less)")
+	
+	if retreat_roll < retreat_chance:
+		combat_message.emit("Successfully retreated from combat!")
+		is_combat_active = false
+		combat_participants.clear()
+		# Signal retreat as a special case (neither win nor loss)
+		combat_finished.emit(false)  
+	else:
+		combat_message.emit("Failed to retreat! Enemies block the escape route.")
+		next_turn()
 
 func end_combat(player_won: bool):
 	is_combat_active = false

@@ -30,6 +30,7 @@ var armor: Item = null
 var inventory: Array[Item] = []
 
 signal health_changed(new_health: int, max_health: int)
+signal experience_changed(new_xp: int, level: int)
 signal died
 
 func _ready():
@@ -233,6 +234,9 @@ func gain_experience(xp_amount: int) -> bool:
 	# Check for level-ups
 	while experience >= get_xp_for_next_level() and level < 20:
 		level_up()
+	
+	# Emit signal to update UI
+	experience_changed.emit(experience, level)
 	
 	# Return true if we leveled up
 	return level > old_level

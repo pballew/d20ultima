@@ -57,6 +57,16 @@ func setup_from_monster_data(data: MonsterData):
 			_:
 				special_attack_uses[attack] = 99  # At-will abilities
 
+# Override to prevent Character's update_derived_stats from overriding monster HP
+func update_derived_stats():
+	# Only update AC, preserve monster's calculated HP
+	armor_class = 10 + get_modifier(dexterity)
+	if armor:
+		armor_class += armor.armor_bonus
+	
+	# Don't override max_health for monsters - it's calculated from monster data
+	# Keep the monster's properly calculated HP from calculate_hit_points()
+
 func get_grapple_size_modifier(size: MonsterData.Size) -> int:
 	match size:
 		MonsterData.Size.FINE: return -16

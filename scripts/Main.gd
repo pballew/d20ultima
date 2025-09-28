@@ -60,7 +60,6 @@ func _ready():
 	# Setup combat UI
 	combat_ui.setup_combat_ui(player, combat_manager)
 
-
 	print("Game scene ready!")
 
 func regenerate_map():
@@ -1120,7 +1119,7 @@ func _on_combat_finished(player_won: bool):
 	if player_won:
 		# Award XP for victory - base amount varies by enemy type
 		var xp_reward = 25 + randi() % 26  # 25-50 XP for winning
-		player.add_experience(xp_reward)
+		player.gain_experience(xp_reward)
 		print("Combat victory! Gained ", xp_reward, " XP")
 	else:
 		# Handle player defeat - respawn with full health

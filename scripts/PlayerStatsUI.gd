@@ -29,9 +29,11 @@ func _ready():
 func setup_player_stats(p: Character):
 	player = p
 	if player:
-		# Only connect signal if not already connected
+		# Only connect signals if not already connected
 		if not player.health_changed.is_connected(_on_player_health_changed):
 			player.health_changed.connect(_on_player_health_changed)
+		if not player.experience_changed.is_connected(_on_player_experience_changed):
+			player.experience_changed.connect(_on_player_experience_changed)
 		update_all_stats()
 
 func update_all_stats():
@@ -81,6 +83,10 @@ func _on_player_health_changed(new_health: int, max_health: int):
 		health_bar.modulate = Color.YELLOW
 	else:
 		health_bar.modulate = Color.RED
+
+func _on_player_experience_changed(new_xp: int, level: int):
+	# Update the experience display
+	update_all_stats()
 
 func _on_toggle_pressed():
 	stats_visible = !stats_visible
