@@ -906,7 +906,7 @@ func create_bandit_data() -> MonsterData:
 	return data
 
 func create_monster_texture(monster_name: String) -> ImageTexture:
-	var image = Image.create(64, 64, false, Image.FORMAT_RGB8)
+	var image = Image.create(32, 32, false, Image.FORMAT_RGB8)
 	
 	# Colors for different enemy types
 	var primary_color: Color
@@ -964,146 +964,201 @@ func create_monster_texture(monster_name: String) -> ImageTexture:
 			secondary_color = Color(0.3, 0.3, 0.3)
 	
 	# Fill background transparent
-	for x in range(64):
-		for y in range(64):
+	for x in range(32):
+		for y in range(32):
 			image.set_pixel(x, y, Color(0, 0, 0, 0))
 	
-	var center_x = 32
-	var center_y = 32
+	var center_x = 16
+	var center_y = 16
 	
-	if monster_name == "Wolf" or monster_name == "Giant Rat":
+	if monster_name == "Wolf" or monster_name == "Giant Rat" or monster_name == "Dire Wolf" or monster_name == "Black Bear":
 		# Draw quadruped creatures
-		# Body (horizontal)
-		for x in range(center_x - 6, center_x + 6):
-			for y in range(center_y - 2, center_y + 2):
-				if x >= 0 and x < 64 and y >= 0 and y < 64:
+		# Body (horizontal oval) - larger for dire wolf and bear
+		var body_width = 14 if (monster_name == "Dire Wolf" or monster_name == "Black Bear") else 14
+		var body_height = 4 if (monster_name == "Dire Wolf" or monster_name == "Black Bear") else 6
+		
+		for x in range(center_x - 8, center_x + 6):
+			for y in range(center_y - 3, center_y + 3):
+				if x >= 0 and x < 32 and y >= 0 and y < 32:
 					image.set_pixel(x, y, primary_color)
 		
-		# Head
-		for x in range(center_x + 4, center_x + 8):
-			for y in range(center_y - 3, center_y + 1):
-				if x >= 0 and x < 64 and y >= 0 and y < 64:
-					image.set_pixel(x, y, primary_color)
-		
-		# Legs
-		for x in range(center_x - 4, center_x - 2):
-			for y in range(center_y + 2, center_y + 6):
-				if x >= 0 and x < 64 and y >= 0 and y < 64:
-					image.set_pixel(x, y, secondary_color)
-		
-		for x in range(center_x + 2, center_x + 4):
-			for y in range(center_y + 2, center_y + 6):
-				if x >= 0 and x < 64 and y >= 0 and y < 64:
-					image.set_pixel(x, y, secondary_color)
-		
-		# Tail
-		if monster_name == "Wolf":
-			for x in range(center_x - 8, center_x - 6):
-				for y in range(center_y - 1, center_y + 1):
-					if x >= 0 and x < 64 and y >= 0 and y < 64:
+		# Head - vary by creature type
+		if monster_name == "Giant Rat":
+			# Rat head with long snout
+			for x in range(center_x + 4, center_x + 12):
+				for y in range(center_y - 3, center_y + 1):
+					if x >= 0 and x < 32 and y >= 0 and y < 32:
+						image.set_pixel(x, y, primary_color)
+		else:
+			# Standard quadruped head
+			for x in range(center_x + 4, center_x + 10):
+				for y in range(center_y - 4, center_y + 2):
+					if x >= 0 and x < 32 and y >= 0 and y < 32:
 						image.set_pixel(x, y, primary_color)
 		
-		# Long tail for rat
+		# Legs - shorter for rat, normal for others
+		var leg_length = 3 if monster_name == "Giant Rat" else 5
+		
+		# Front legs
+		for x in range(center_x + 2, center_x + 4):
+			for y in range(center_y + 3, center_y + 3 + leg_length):
+				if x >= 0 and x < 32 and y >= 0 and y < 32:
+					image.set_pixel(x, y, secondary_color)
+		
+		# Back legs
+		for x in range(center_x - 2, center_x):
+			for y in range(center_y + 3, center_y + 3 + leg_length):
+				if x >= 0 and x < 32 and y >= 0 and y < 32:
+					image.set_pixel(x, y, secondary_color)
+		
+		# Ears - vary by creature
 		if monster_name == "Giant Rat":
-			for x in range(center_x - 10, center_x - 6):
-				for y in range(center_y, center_y + 1):
-					if x >= 0 and x < 64 and y >= 0 and y < 64:
+			# Small round rat ears
+			for x in range(center_x + 7, center_x + 9):
+				for y in range(center_y - 5, center_y - 3):
+					if x >= 0 and x < 32 and y >= 0 and y < 32:
+						image.set_pixel(x, y, secondary_color)
+		elif monster_name == "Dire Wolf" or monster_name == "Wolf":
+			# Pointed wolf ears
+			for x in range(center_x + 6, center_x + 8):
+				for y in range(center_y - 6, center_y - 4):
+					if x >= 0 and x < 32 and y >= 0 and y < 32:
+						image.set_pixel(x, y, secondary_color)
+		else:
+			# Bear ears (small and round)
+			for x in range(center_x + 6, center_x + 8):
+				for y in range(center_y - 5, center_y - 4):
+					if x >= 0 and x < 32 and y >= 0 and y < 32:
+						image.set_pixel(x, y, secondary_color)
+		
+		# Tail - vary by creature type
+		if monster_name == "Wolf" or monster_name == "Dire Wolf":
+			# Wolf tail (bushy)
+			for x in range(center_x - 12, center_x - 8):
+				for y in range(center_y - 2, center_y + 1):
+					if x >= 0 and x < 32 and y >= 0 and y < 32:
+						image.set_pixel(x, y, primary_color)
+		elif monster_name == "Giant Rat":
+			# Long thin rat tail
+			for x in range(center_x - 14, center_x - 8):
+				for y in range(center_y + 1, center_y + 2):
+					if x >= 0 and x < 32 and y >= 0 and y < 32:
+						image.set_pixel(x, y, secondary_color)
+		elif monster_name == "Black Bear":
+			# Short bear tail
+			for x in range(center_x - 10, center_x - 8):
+				for y in range(center_y - 1, center_y + 1):
+					if x >= 0 and x < 32 and y >= 0 and y < 32:
 						image.set_pixel(x, y, secondary_color)
 	
 	elif monster_name == "Stirge":
 		# Draw flying creature
-		# Small body
-		for x in range(center_x - 2, center_x + 2):
-			for y in range(center_y - 1, center_y + 2):
-				if x >= 0 and x < 64 and y >= 0 and y < 64:
+		# Body (larger oval)
+		for x in range(center_x - 3, center_x + 3):
+			for y in range(center_y - 2, center_y + 3):
+				if x >= 0 and x < 32 and y >= 0 and y < 32:
 					image.set_pixel(x, y, primary_color)
 		
-		# Wings
-		for x in range(center_x - 5, center_x - 2):
-			for y in range(center_y - 3, center_y + 1):
-				if x >= 0 and x < 64 and y >= 0 and y < 64:
+		# Large wings
+		for x in range(center_x - 8, center_x - 3):
+			for y in range(center_y - 4, center_y + 1):
+				if x >= 0 and x < 32 and y >= 0 and y < 32:
 					image.set_pixel(x, y, secondary_color)
 		
-		for x in range(center_x + 2, center_x + 5):
-			for y in range(center_y - 3, center_y + 1):
-				if x >= 0 and x < 64 and y >= 0 and y < 64:
+		for x in range(center_x + 3, center_x + 8):
+			for y in range(center_y - 4, center_y + 1):
+				if x >= 0 and x < 32 and y >= 0 and y < 32:
 					image.set_pixel(x, y, secondary_color)
 		
-		# Proboscis
-		for x in range(center_x + 2, center_x + 4):
+		# Proboscis (longer)
+		for x in range(center_x + 3, center_x + 6):
 			for y in range(center_y, center_y + 1):
-				if x >= 0 and x < 64 and y >= 0 and y < 64:
+				if x >= 0 and x < 32 and y >= 0 and y < 32:
 					image.set_pixel(x, y, primary_color)
+		
+		# Small legs
+		for x in range(center_x - 1, center_x + 1):
+			for y in range(center_y + 3, center_y + 5):
+				if x >= 0 and x < 32 and y >= 0 and y < 32:
+					image.set_pixel(x, y, secondary_color)
 	else:
 		# Draw humanoid enemies
-		# Head
-		for x in range(center_x - 3, center_x + 3):
-			for y in range(center_y - 8, center_y - 3):
-				if x >= 0 and x < 64 and y >= 0 and y < 64:
+		# Head (larger)
+		for x in range(center_x - 4, center_x + 4):
+			for y in range(center_y - 10, center_y - 4):
+				if x >= 0 and x < 32 and y >= 0 and y < 32:
 					image.set_pixel(x, y, primary_color)
 		
-		# Body
-		for x in range(center_x - 3, center_x + 3):
-			for y in range(center_y - 3, center_y + 5):
-				if x >= 0 and x < 64 and y >= 0 and y < 64:
+		# Body (wider and taller)
+		for x in range(center_x - 4, center_x + 4):
+			for y in range(center_y - 4, center_y + 6):
+				if x >= 0 and x < 32 and y >= 0 and y < 32:
 					image.set_pixel(x, y, secondary_color)
 		
-		# Arms
-		for x in range(center_x - 5, center_x - 2):
-			for y in range(center_y - 2, center_y + 3):
-				if x >= 0 and x < 64 and y >= 0 and y < 64:
+		# Arms (longer)
+		for x in range(center_x - 7, center_x - 3):
+			for y in range(center_y - 2, center_y + 4):
+				if x >= 0 and x < 32 and y >= 0 and y < 32:
 					image.set_pixel(x, y, primary_color)
 		
-		for x in range(center_x + 2, center_x + 5):
-			for y in range(center_y - 2, center_y + 3):
-				if x >= 0 and x < 64 and y >= 0 and y < 64:
+		for x in range(center_x + 3, center_x + 7):
+			for y in range(center_y - 2, center_y + 4):
+				if x >= 0 and x < 32 and y >= 0 and y < 32:
 					image.set_pixel(x, y, primary_color)
 		
-		# Weapon in right hand
-		for x in range(center_x + 5, center_x + 7):
-			for y in range(center_y - 4, center_y + 2):
-				if x >= 0 and x < 64 and y >= 0 and y < 64:
+		# Weapon in right hand (longer sword/club)
+		for x in range(center_x + 7, center_x + 9):
+			for y in range(center_y - 6, center_y + 2):
+				if x >= 0 and x < 32 and y >= 0 and y < 32:
 					image.set_pixel(x, y, weapon_color)
 		
-		# Legs
-		for x in range(center_x - 2, center_x):
-			for y in range(center_y + 5, center_y + 10):
-				if x >= 0 and x < 64 and y >= 0 and y < 64:
+		# Legs (longer and wider)
+		for x in range(center_x - 3, center_x - 1):
+			for y in range(center_y + 6, center_y + 12):
+				if x >= 0 and x < 32 and y >= 0 and y < 32:
 					image.set_pixel(x, y, secondary_color)
 		
-		for x in range(center_x, center_x + 2):
-			for y in range(center_y + 5, center_y + 10):
-				if x >= 0 and x < 64 and y >= 0 and y < 64:
+		for x in range(center_x + 1, center_x + 3):
+			for y in range(center_y + 6, center_y + 12):
+				if x >= 0 and x < 32 and y >= 0 and y < 32:
 					image.set_pixel(x, y, secondary_color)
+		
+		# Eyes (simple dots)
+		if center_x - 2 >= 0 and center_x - 2 < 32 and center_y - 8 >= 0 and center_y - 8 < 32:
+			image.set_pixel(center_x - 2, center_y - 8, Color.BLACK)
+		if center_x + 1 >= 0 and center_x + 1 < 32 and center_y - 8 >= 0 and center_y - 8 < 32:
+			image.set_pixel(center_x + 1, center_y - 8, Color.BLACK)
 		
 		# Special features for specific monsters
 		if monster_name == "Skeleton":
-			# Add rib cage lines
-			for y in range(center_y - 1, center_y + 3):
+			# Add rib cage lines (more visible)
+			for y in range(center_y - 2, center_y + 4):
 				if y >= 0 and y < 32:
-					image.set_pixel(center_x - 2, y, Color(0.5, 0.5, 0.5))
-					image.set_pixel(center_x + 1, y, Color(0.5, 0.5, 0.5))
+					if center_x - 3 >= 0 and center_x - 3 < 32:
+						image.set_pixel(center_x - 3, y, Color(0.4, 0.4, 0.4))
+					if center_x + 2 >= 0 and center_x + 2 < 32:
+						image.set_pixel(center_x + 2, y, Color(0.4, 0.4, 0.4))
 		
 		elif monster_name == "Zombie":
-			# Add decay spots
-			for i in range(3):
-				var spot_x = center_x + randi_range(-2, 2)
-				var spot_y = center_y + randi_range(-2, 3)
+			# Add decay spots (more visible)
+			for i in range(6):
+				var spot_x = center_x + randi_range(-3, 3)
+				var spot_y = center_y + randi_range(-3, 4)
 				if spot_x >= 0 and spot_x < 32 and spot_y >= 0 and spot_y < 32:
 					image.set_pixel(spot_x, spot_y, Color(0.2, 0.3, 0.1))
 		
 		elif monster_name == "Kobold":
-			# Add scale pattern
-			for x in range(center_x - 2, center_x + 2):
-				for y in range(center_y - 6, center_y - 4):
-					if (x + y) % 2 == 0 and x >= 0 and x < 64 and y >= 0 and y < 64:
+			# Add scale pattern (more visible on head)
+			for x in range(center_x - 3, center_x + 3):
+				for y in range(center_y - 8, center_y - 6):
+					if (x + y) % 2 == 0 and x >= 0 and x < 32 and y >= 0 and y < 32:
 						image.set_pixel(x, y, secondary_color)
 		
 		elif monster_name == "Gnoll":
-			# Add hyena spots
-			for i in range(4):
-				var spot_x = center_x + randi_range(-2, 2)
-				var spot_y = center_y + randi_range(-6, -2)
+			# Add hyena spots (more visible on head)
+			for i in range(6):
+				var spot_x = center_x + randi_range(-3, 3)
+				var spot_y = center_y + randi_range(-8, -5)
 				if spot_x >= 0 and spot_x < 32 and spot_y >= 0 and spot_y < 32:
 					image.set_pixel(spot_x, spot_y, secondary_color)
 	
