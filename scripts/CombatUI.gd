@@ -27,7 +27,7 @@ func _ready():
 	
 	# Set smaller font size and reduce vertical spacing for combat log
 	if combat_log:
-		combat_log.add_theme_font_size_override("font_size", 14)
+		combat_log.add_theme_font_size_override("font_size", 10)
 		combat_log.add_theme_constant_override("line_spacing", -2)
 	
 	# Initially show the log
