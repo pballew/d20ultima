@@ -339,6 +339,98 @@ func _remove_bandit():
         bandit_node.queue_free()
         bandit_node = null
 
+func _remove_monster_container():
+    # Remove the container used by show_all_monsters if present
+    var existing = get_node_or_null("MonsterContainer")
+    if existing and is_instance_valid(existing):
+        existing.queue_free()
+
+
+func show_all_monsters():
+    """Load all PNG files from res://assets/monster_sprites/ and display them in a grid.
+    This creates a Control child named 'MonsterContainer' and populates it with TextureRect nodes.
+    """
+    # Ensure we are in a visible state and remove any previous temporary nodes
+    _remove_bandit()
+    _remove_monster_container()
+
+    var dir = DirAccess.open("res://assets/monster_sprites")
+    if not dir:
+        print("CombatScreen: could not open monster sprites directory")
+        return
+
+    var files = []
+    dir.list_dir_begin()
+    var fname = dir.get_next()
+    while fname != "":
+        if not dir.current_is_dir() and fname.to_lower().ends_with(".png"):
+            files.append(fname)
+        fname = dir.get_next()
+    dir.list_dir_end()
+
+    if files.size() == 0:
+        print("CombatScreen: no monster PNGs found in assets/monster_sprites")
+        return
+
+    # Create container Control to hold monster sprites
+    var container = Control.new()
+    container.name = "MonsterContainer"
+    container.anchor_left = 0
+    container.anchor_top = 0
+    container.anchor_right = 0
+    container.anchor_bottom = 0
+    container.size = size
+    container.position = Vector2.ZERO
+    add_child(container)
+
+    # Layout grid parameters
+    var padding = 8
+    var cell_w = tile_size + padding
+    var cell_h = tile_size + padding
+    var cols = max(1, int(floor(max(1, size.x) / cell_w)))
+    var x = 0
+    var y = 0
+
+    for i in range(files.size()):
+        var f = files[i]
+        var path = "res://assets/monster_sprites/" + f
+        var tex: Texture2D = null
+        if FileAccess.file_exists(path):
+            var r = load(path)
+            if r and r is Texture2D:
+                tex = r
+            else:
+                var img = Image.new()
+                var err = img.load(path)
+                if err == OK:
+                    var it = ImageTexture.new()
+                    it.create_from_image(img)
+                    tex = it
+
+        if not tex:
+            # Skip entries we couldn't load
+            continue
+
+        var tr = TextureRect.new()
+        tr.texture = tex
+        tr.anchor_left = 0
+        tr.anchor_top = 0
+        tr.anchor_right = 0
+        tr.anchor_bottom = 0
+        tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+        tr.size = Vector2(tile_size, tile_size)
+        tr.position = Vector2(x * cell_w + padding/2, y * cell_h + padding/2)
+        tr.visible = true
+        tr.z_index = 1100
+        container.add_child(tr)
+
+        x += 1
+        if x >= cols:
+            x = 0
+            y += 1
+
+    print("CombatScreen: populated ", files.size(), " monster sprites into MonsterContainer")
+
 
 # CombatScreen intentionally doesn't process input; Main.gd toggles it
 

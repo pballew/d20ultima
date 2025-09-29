@@ -1443,6 +1443,9 @@ func _input(event):
 			# Be defensive: combat_screen may be a plain Control if its script failed to load earlier.
 			if combat_screen.has_method("toggle"):
 				combat_screen.toggle()
+				# If the screen is now visible, ask it to populate all monster sprites for debugging
+				if combat_screen.visible and combat_screen.has_method("show_all_monsters"):
+					combat_screen.show_all_monsters()
 				return
 			else:
 				print("Main: combat_screen instance missing 'toggle' method (type=", combat_screen.get_class(), "). Re-instantiating scene.")
