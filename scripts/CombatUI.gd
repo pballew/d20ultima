@@ -1,18 +1,21 @@
 extends Control
 
-@onready var combat_log = $VBoxContainer/CombatLogContainer/CombatLog
-@onready var combat_log_container = $VBoxContainer/CombatLogContainer
 @onready var action_buttons = $VBoxContainer/ActionButtons
 @onready var attack_button = $VBoxContainer/ActionButtons/AttackButton
 @onready var retreat_button = $VBoxContainer/ActionButtons/RetreatButton
-@onready var log_toggle_button = $VBoxContainer/LogToggleContainer/LogToggleButton
+# Combat log UI elements removed — combat messages will be logged to console only
 @onready var panel = $Panel
 @onready var vbox_container = $VBoxContainer
+
+# Placeholders for removed combat log UI elements (kept as null-safe stubs)
+var combat_log = null
+var combat_log_container = null
+var log_toggle_button = null
 
 var player: Player
 var combat_manager: CombatManager
 var current_enemies: Array = []
-var log_visible: bool = true
+var log_visible: bool = false
 
 func _ready():
 	# Only hide action buttons initially, keep log toggle available
@@ -22,17 +25,15 @@ func _ready():
 		attack_button.pressed.connect(_on_attack_pressed)
 	if retreat_button:
 		retreat_button.pressed.connect(_on_retreat_pressed)
-	if log_toggle_button:
-		log_toggle_button.pressed.connect(_on_log_toggle_pressed)
+	# Log toggle removed; player toggles do nothing now
 	
 	# Set smaller font size and reduce vertical spacing for combat log
 	if combat_log:
 		combat_log.add_theme_font_size_override("font_size", 10)
 		combat_log.add_theme_constant_override("line_spacing", -2)
 	
-	# Initially show the log
-	log_visible = true
-	combat_log_container.custom_minimum_size = Vector2(0, 240)
+	# Combat log UI removed — keep internal flag false
+	log_visible = false
 
 # Method to hide combat action buttons when combat is not in progress, but keep log visible
 func force_hide_combat_ui():
@@ -62,17 +63,10 @@ func setup_combat_ui(p: Player, cm: CombatManager):
 
 func show_combat(enemies: Array):
 	current_enemies = enemies
-	
-	# Auto-show the combat log when combat begins
-	if not log_visible:
-		log_visible = true
-		update_log_toggle_display()
-		print("COMBAT LOG: Auto-shown for new combat")
-	
-	# Don't clear the combat log here - the CombatManager has already sent initial messages
-	# The combat_message signal has populated the log with initiative and combat info
+
+	# Show combat action buttons; combat messages will be printed to console
 	show()
-	action_buttons.show()  # Ensure action buttons are visible for new combat
+	action_buttons.show()
 
 # Player and enemy health changes are now handled by combat log messages
 func _on_player_health_changed(new_health: int, max_health: int):
@@ -93,9 +87,12 @@ func _on_combat_finished(player_won: bool):
 	if player_won:
 		add_combat_log("Victory!")
 	else:
-		# Check if this was a retreat (last message contains "retreat")
-		var last_message = combat_log.text.split("\n")[-2] if combat_log.text.contains("retreat") else ""
-		if not last_message.contains("retreat"):
+		# If the combat log UI does not exist, just log defeat to console.
+		# Otherwise, avoid adding a duplicate "Defeat!" if the last message was a retreat.
+		if combat_log and combat_log.text and combat_log.text.contains("retreat"):
+			# retreat already logged, do nothing
+			pass
+		else:
 			add_combat_log("Defeat!")
 		# If it was a retreat, the retreat message is already shown
 	
@@ -110,6 +107,8 @@ func _on_combat_finished(player_won: bool):
 	if player and player.has_method("exit_combat"):
 		player.exit_combat()
 
+	# Combat UI remains, but the combat log UI elements are removed — nothing to destroy
+
 func _on_attack_pressed():
 	if current_enemies.size() > 0:
 		# For simplicity, attack the first alive enemy
@@ -122,30 +121,34 @@ func _on_retreat_pressed():
 	combat_manager.player_retreat()
 
 func _on_combat_message(message: String):
+	# With the combat log removed, route messages to console
 	if message == "CLEAR_LOG":
-		combat_log.text = ""
+		print("[COMBAT LOG CLEARED]")
 	else:
 		add_combat_log(message)
 
 func add_combat_log(text: String):
-	combat_log.text += text + "\n"
-	# Limit log size
-	var lines = combat_log.text.split("\n")
-	if lines.size() > 20:
-		lines = lines.slice(-20)
-		combat_log.text = "\n".join(lines)
-	
-	# Auto-scroll to bottom
-	await get_tree().process_frame
-	combat_log_container.scroll_vertical = combat_log_container.get_v_scroll_bar().max_value
+	# Console-only fallback: print the combat message so game logic still records events
+	print("[COMBAT] ", text)
 
 func _on_log_toggle_pressed():
 	log_visible = !log_visible
+	# Safely update display without touching destroyed nodes
 	update_log_toggle_display()
 
 func update_log_toggle_display():
+	# Update the toggle button text even if the log container was destroyed.
+	if log_toggle_button:
+		log_toggle_button.text = ("▼ Combat Log" if log_visible else "▶ Combat Log")
+
+	# If the combat log container doesn't exist (destroyed), avoid touching it and other UI pieces.
+	if not combat_log_container:
+		# Just update the button text and internal flag; safe exit.
+		print("COMBAT LOG: ", ("SHOWN" if log_visible else "HIDDEN"))
+		return
+
+	# At this point, combat_log_container exists and it's safe to set visual properties.
 	if log_visible:
-		log_toggle_button.text = "▼ Combat Log"
 		combat_log_container.visible = true
 		combat_log_container.custom_minimum_size = Vector2(0, 240)
 		combat_log_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -157,13 +160,12 @@ func update_log_toggle_display():
 			vbox_container.offset_top = -280.0
 		print("COMBAT LOG: SHOWN")
 	else:
-		log_toggle_button.text = "▶ Combat Log"
 		combat_log_container.visible = false
 		combat_log_container.custom_minimum_size = Vector2(0, 0)
 		combat_log_container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		# Shrink panel to just show buttons, or hide it entirely if no combat
 		if panel:
-			if action_buttons.visible:
+			if action_buttons and action_buttons.visible:
 				# Combat is active, show smaller panel for buttons only
 				panel.visible = true
 				panel.offset_top = -80.0
@@ -173,3 +175,49 @@ func update_log_toggle_display():
 		if vbox_container:
 			vbox_container.offset_top = -60.0
 		print("COMBAT LOG: HIDDEN")
+
+# Permanently destroy the combat log UI so it can be recreated later
+func destroy_combat_log():
+	if combat_log and is_instance_valid(combat_log):
+		combat_log.queue_free()
+	# Also clear any children from the container so it's empty
+	if combat_log_container and is_instance_valid(combat_log_container):
+		for child in combat_log_container.get_children():
+			child.queue_free()
+	combat_log = null
+	combat_log_container = null
+
+# Rebuild the combat log UI from scratch (used when loading a map/game)
+func build_combat_log():
+	# Ensure the VBoxContainer exists
+	var vbox = get_node_or_null("VBoxContainer")
+	if not vbox:
+		vbox = VBoxContainer.new()
+		vbox.name = "VBoxContainer"
+		add_child(vbox)
+
+	var container = vbox.get_node_or_null("CombatLogContainer")
+	if not container:
+		container = VBoxContainer.new()
+		container.name = "CombatLogContainer"
+		vbox.add_child(container)
+
+	var label = container.get_node_or_null("CombatLog")
+	if not label:
+		label = Label.new()
+		label.name = "CombatLog"
+		label.autowrap = true
+		container.add_child(label)
+
+	# Re-assign references
+	combat_log = label
+	combat_log_container = container
+
+	# Restore default visual settings
+	if combat_log:
+		combat_log.add_theme_font_size_override("font_size", 10)
+		combat_log.add_theme_constant_override("line_spacing", -2)
+
+	# Ensure container has reasonable size; visibility will be handled by show_combat
+	if combat_log_container:
+		combat_log_container.custom_minimum_size = Vector2(0, 240)

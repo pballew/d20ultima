@@ -45,6 +45,7 @@ var moisture_noise: FastNoiseLite
 
 # TileSet resource
 var terrain_tileset: TileSet
+var terrain_atlas_texture: Texture2D = null
 
 # Boundary markers for debugging
 var boundary_markers: Array = []
@@ -659,9 +660,50 @@ func generate_terrain_tileset() -> TileSet:
 	
 	# Add the atlas source to the tileset
 	tileset.add_source(atlas_source, 0)
-	
+
+	# Keep a reference to the atlas texture so other systems can extract subregions
+	terrain_atlas_texture = atlas_texture
+
 	print("TileSet generation complete!")
 	return tileset
+
+
+func get_tile_texture_at_world_pos(world_pos: Vector2) -> Texture2D:
+	"""Return an AtlasTexture for the terrain tile at the given world position.
+	Uses the same atlas layout created during tileset generation.
+	Returns null if tile or atlas is not available."""
+	if not terrain_atlas_texture:
+		# Try to recover atlas from tileset sources if available
+		if terrain_tileset and terrain_tileset.get_source_count() > 0:
+			var src = terrain_tileset.get_source(0)
+			if src and src.has_method("get_texture"):
+				terrain_atlas_texture = src.get_texture()
+		if not terrain_atlas_texture:
+			return null
+
+	# Convert world_pos to global tile coords
+	var tile_x = int(floor(world_pos.x / TILE_SIZE))
+	var tile_y = int(floor(world_pos.y / TILE_SIZE))
+	var info = global_tile_to_section_and_local(Vector2i(tile_x, tile_y))
+	var section_id: Vector2i = info["section_id"]
+	var local_pos: Vector2i = info["local_pos"]
+
+	if not map_sections.has(section_id):
+		return null
+	var section = map_sections[section_id]
+	if not section.terrain_data.has(local_pos):
+		return null
+
+	var terrain_type = int(section.terrain_data[local_pos])
+	# Atlas arranged in 8 columns as used during generation
+	var atlas_x = terrain_type % 8
+	var atlas_y = int(terrain_type / 8)
+
+	var region = Rect2(atlas_x * TILE_SIZE, atlas_y * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+	var at = AtlasTexture.new()
+	at.atlas = terrain_atlas_texture
+	at.region = region
+	return at
 
 func create_terrain_atlas(terrain_colors: Dictionary) -> ImageTexture:
 	# Use the detailed TileSetGenerator to create proper terrain patterns

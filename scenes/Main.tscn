@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://cjmgrfmympn3f" path="res://scripts/Main.gd" id="1_0h8yg"]
 [ext_resource type="Script" uid="uid://bc2gfswj72la6" path="res://scripts/Player.gd" id="2_5xhyv"]
 [ext_resource type="Script" uid="uid://brikxy6jr2vv2" path="res://scripts/CombatManager.gd" id="3_k3dmh"]
-[ext_resource type="PackedScene" uid="uid://b0g8nxb7kp2ps" path="res://scenes/CombatUI.tscn" id="4_3xhyv"]
+ 
 [ext_resource type="Script" path="res://scripts/EnhancedTerrain.gd" id="5_enhanced_terrain"]
 [ext_resource type="Script" path="res://scripts/FogOfWar.gd" id="9_fog_of_war"]
 [ext_resource type="PackedScene" uid="uid://ckfj8w8hmxrq2" path="res://scenes/PlayerStatsUI.tscn" id="6_player_stats"]
@@ -38,10 +38,6 @@ script = ExtResource("9_fog_of_war")
 
 [node name="PlayerStatsUI" parent="UI" instance=ExtResource("6_player_stats")]
 
-[node name="CombatUI" parent="UI" instance=ExtResource("4_3xhyv")]
-offset_left = 1.0
-offset_right = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+ 
 
 [node name="CoordinateOverlay" parent="UI" instance=ExtResource("7_coordinate_overlay")]

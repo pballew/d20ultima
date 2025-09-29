@@ -95,6 +95,8 @@ func _on_start_game(character_data: CharacterData):
 	
 	print("Hiding main menu...")
 	main_menu.hide()
+
+	# Do not auto-create the combat log here; it will be created when combat begins
 	
 	print("Looking for game scene nodes...")
 	# Initialize game with character data
@@ -173,6 +175,8 @@ func _save_and_return_to_menu():
 	var player_stats_ui = game_scene.get_node("UI/PlayerStatsUI")
 	if player_stats_ui:
 		player_stats_ui.hide()
+
+	# Combat log UI removed; no cleanup needed here
 	
 	main_menu.show()
 	main_menu.show_main_menu()  # Refresh the menu state

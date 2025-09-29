@@ -4,7 +4,9 @@ const TILE_SIZE = 32  # Match this with EnhancedTerrain.TILE_SIZE
 
 @onready var player = $Player
 @onready var combat_manager = $CombatManager
-@onready var combat_ui = $UI/CombatUI
+var combat_ui = null
+@onready var combat_screen_scene = preload("res://scenes/CombatScreen.tscn")
+var combat_screen = null
 @onready var player_stats_ui = $UI/PlayerStatsUI
 @onready var coordinate_overlay = $UI/CoordinateOverlay
 @onready var terrain = $EnhancedTerrainTileMap
@@ -41,6 +43,12 @@ func _ready():
 	# Add debug UI (hidden for cleaner gameplay)
 	# var debug_ui = debug_ui_scene.instantiate()
 	# add_child(debug_ui)
+
+	# Instantiate CombatScreen under UI so it overlays properly
+	var ui_layer = get_node_or_null("UI")
+	if ui_layer and combat_screen_scene:
+		combat_screen = combat_screen_scene.instantiate()
+		ui_layer.add_child(combat_screen)
 	
 	# Set player camera target to prevent bounds constraints
 	if player.has_method("set_camera_target"):
@@ -57,10 +65,14 @@ func _ready():
 	# Create town name display label
 	create_town_name_display()
 
-	# Setup combat UI
-	combat_ui.setup_combat_ui(player, combat_manager)
+	# Setup combat UI if present (CombatUI scene may have had UI elements removed)
+	if combat_ui and combat_ui.has_method("setup_combat_ui"):
+		combat_ui.setup_combat_ui(player, combat_manager)
 
 	print("Game scene ready!")
+
+	# Spawn a few visible monsters around the player for debugging/visibility
+	spawn_some_overworld_monsters()
 
 func regenerate_map():
 	# Ensure we have references to key nodes
@@ -215,7 +227,8 @@ func _on_encounter_started():
 	
 	# Start combat
 	combat_manager.start_combat(player, [enemy])
-	combat_ui.show_combat([enemy])
+	if combat_ui and combat_ui.has_method("show_combat"):
+		combat_ui.show_combat([enemy])
 	
 	# Connect to combat end to award XP
 	if not combat_manager.combat_finished.is_connected(_on_combat_finished):
@@ -257,14 +270,13 @@ func create_random_enemy(difficulty_modifier: String = "wilderness") -> Characte
 
 func create_random_monster_data(difficulty_modifier: String = "wilderness") -> MonsterData:
 	var monsters = []
-	
 	# Base encounters available everywhere
 	var base_monsters = [
 		create_goblin_data(),
 		create_kobold_data(),
 		create_giant_rat_data()
 	]
-	
+
 	# Terrain-specific encounters
 	match difficulty_modifier:
 		"forest":
@@ -304,7 +316,7 @@ func create_random_monster_data(difficulty_modifier: String = "wilderness") -> M
 				create_giant_rat_data(),
 				create_kobold_data()
 			]
-		_: # "wilderness" or default
+		_:
 			monsters = [
 				create_goblin_data(),
 				create_kobold_data(),
@@ -314,16 +326,39 @@ func create_random_monster_data(difficulty_modifier: String = "wilderness") -> M
 				create_gnoll_data(),
 				create_stirge_data()
 			]
-	
-	# Add some base monsters to all encounter tables (10% chance each)
+
+	# Add some base monsters to all encounter tables with some probability
 	if randf() < 0.3:
 		monsters.append(base_monsters[randi() % base_monsters.size()])
-	
+
+	# Defensive: ensure we always have at least one monster option
+	if monsters.size() == 0:
+		monsters = base_monsters.duplicate()
+
 	# Scale monster difficulty based on player level
 	var selected_monster = monsters[randi() % monsters.size()]
 	scale_monster_to_player_level(selected_monster)
-	
+
 	return selected_monster
+
+func spawn_some_overworld_monsters():
+	"""Spawn a small number of simple monsters around the player so they are visible on the map."""
+	if not player:
+		return
+
+	var offsets = [Vector2(3,0), Vector2(-4,1), Vector2(2,2), Vector2(-3,-2)]
+	for i in range(offsets.size()):
+		var pos = player.global_position + offsets[i] * TILE_SIZE
+		var enemy = create_random_enemy()
+		# Place enemy at tile-centered position
+		enemy.global_position = pos
+		# Ensure sprite is visible above ground
+		for child in enemy.get_children():
+			if child is Sprite2D:
+				child.z_index = 50
+		print("Spawned overworld monster: ", enemy.name, " at ", enemy.global_position)
+
+	# spawn_some_overworld_monsters intentionally does not return data; it only instantiates enemies
 
 func scale_monster_to_player_level(monster_data: MonsterData):
 	"""Scale monster stats based on player level"""
@@ -1344,11 +1379,12 @@ func respawn_player():
 	camera.global_position = starting_position
 	
 	# Show respawn message to player
-	if combat_ui:
-		combat_ui.add_combat_log("=== RESPAWN ===")
-		combat_ui.add_combat_log("You have been defeated!")
-		combat_ui.add_combat_log("Respawning at starting location with full health.")
-		combat_ui.add_combat_log("===============")
+	var respawn_msgs = ["=== RESPAWN ===", "You have been defeated!", "Respawning at starting location with full health.", "==============="]
+	for msg in respawn_msgs:
+		if combat_ui and combat_ui.has_method("add_combat_log"):
+			combat_ui.add_combat_log(msg)
+		else:
+			print("[COMBAT] ", msg)
 	
 	print("Player respawned with full health at: ", starting_position)
 
@@ -1400,6 +1436,31 @@ func _input(event):
 	if camping_overlay_active and event is InputEventKey and event.pressed:
 		_close_camping_overlay()
 		return
+
+	# Global toggle for combat screen (F6)
+	if event is InputEventKey and event.pressed and event.keycode == KEY_F6:
+		if combat_screen:
+			# Be defensive: combat_screen may be a plain Control if its script failed to load earlier.
+			if combat_screen.has_method("toggle"):
+				combat_screen.toggle()
+				return
+			else:
+				print("Main: combat_screen instance missing 'toggle' method (type=", combat_screen.get_class(), "). Re-instantiating scene.")
+				# Attempt to recover by re-instantiating the scene and replacing the node
+				var parent = combat_screen.get_parent()
+				combat_screen.queue_free()
+				if combat_screen_scene:
+					combat_screen = combat_screen_scene.instantiate()
+					if parent:
+						parent.add_child(combat_screen)
+					else:
+						var ui_layer = get_node_or_null("UI")
+						if ui_layer:
+							ui_layer.add_child(combat_screen)
+					# Try toggling again if available
+					if combat_screen and combat_screen.has_method("toggle"):
+						combat_screen.toggle()
+						return
 		
 	# Handle map regeneration with PageDown key
 	if event.is_action_pressed("ui_page_down"):

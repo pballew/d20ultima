@@ -2,7 +2,7 @@ class_name Player
 extends Character
 
 @export var movement_speed: float = 200.0
-@export var encounters_enabled: bool = true  # Random encounters enabled!
+@export var encounters_enabled: bool = false  # Random encounters enabled (default OFF)
 @export var camera_smooth_speed: float = 8.0  # Higher = snappier, lower = slower (increased for better responsiveness)
 const TILE_SIZE = 32
 var current_target_position: Vector2
@@ -950,7 +950,7 @@ func check_for_random_encounter(world_pos: Vector2, terrain_system):
 	
 	print("Encounter check: terrain=", terrain_type, " base_chance=", get_encounter_chance_for_terrain(terrain_type), " final_chance=", encounter_chance)
 	
-	if randf() < encounter_chance:
+	if encounters_enabled and randf() < encounter_chance:
 		print("Random encounter triggered!")
 		encounter_started.emit()
 
@@ -1010,14 +1010,9 @@ func get_encounter_difficulty_for_terrain(terrain_type: int) -> String:
 
 func toggle_combat_log():
 	"""Toggle the combat log visibility"""
-	var main_scene = get_tree().get_first_node_in_group("main")
-	if not main_scene:
-		main_scene = get_parent()
-	if main_scene and main_scene.has_method("get_node"):
-		var combat_ui = main_scene.get_node_or_null("UI/CombatUI")
-		if combat_ui and combat_ui.has_method("_on_log_toggle_pressed"):
-			combat_ui._on_log_toggle_pressed()
-			print("Combat log toggled via Tab key")
+	# Combat log UI removed; this is a harmless stub to keep older input bindings working.
+	# It intentionally does nothing other than log to console for debugging.
+	print("toggle_combat_log called, but combat log UI has been removed. No action taken.")
 
 func _exit_tree():
 	# Clean up PlayerIconFactory if it exists
