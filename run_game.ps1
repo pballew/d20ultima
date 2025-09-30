@@ -1,8 +1,14 @@
+# Suppress non-terminating errors and stop any running Godot instances
 $ErrorActionPreference = "SilentlyContinue"
 Get-Process Godot_v4.4.1-stable_win64 | Stop-Process -Force
 
-# Run the console version first to check for errors
-$output = & ./Godot_v4.4.1-stable_win64_console.exe --verbose --headless --quit 2>&1
+# Ensure log directory exists
+$logPath = 'C:\temp\godot_output.log'
+$logDir = Split-Path $logPath -Parent
+if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir | Out-Null }
+
+# Run the console version first to check for errors and capture output to log
+$output = & ./Godot_v4.4.1-stable_win64_console.exe --verbose --headless --quit 2>&1 | Tee-Object -FilePath $logPath
 # Filter out cleanup/exit errors that don't affect gameplay
 $criticalErrors = $output | Select-String -Pattern "ERROR:|SCRIPT ERROR:" | Where-Object {
     $_ -notmatch "cleanup \(core/object/object.cpp" -and
@@ -22,5 +28,6 @@ if ($criticalErrors) {
 } else {
     # No errors, run the normal version
     Write-Host "No startup errors found. Launching game..."
-    & ./Godot_v4.4.1-stable_win64.exe
+    # Launch the GUI build and tee its stdout/stderr to the same log file so engine messages are recorded
+    & ./Godot_v4.4.1-stable_win64.exe 2>&1 | Tee-Object -FilePath $logPath
 }

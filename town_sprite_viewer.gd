@@ -7,15 +7,15 @@ func _ready():
 	if ResourceLoader.exists(sprite_path):
 		var texture = load(sprite_path) as Texture2D
 		if texture:
-			print("Town sprite loaded successfully!")
-			print("Sprite size: ", texture.get_size())
+			DebugLogger.info("Town sprite loaded successfully!")
+			DebugLogger.info("Sprite size: %s" % texture.get_size())
 			
 			# Create a simple scene to display the sprite
 			_create_display_scene(texture)
 		else:
-			print("Failed to load sprite as texture")
+			DebugLogger.error("Failed to load sprite as texture")
 	else:
-		print("Sprite file not found at: ", sprite_path)
+		DebugLogger.error("Sprite file not found at: %s" % sprite_path)
 
 func _create_display_scene(texture: Texture2D):
 	# Create a Control node to hold our display
@@ -57,7 +57,7 @@ func _create_display_scene(texture: Texture2D):
 	# Add to scene
 	get_tree().root.add_child(control)
 	
-	print("Sprite display created! Press ESC in the game window to close.")
+	DebugLogger.info("Sprite display created! Press ESC in the game window to close.")
 
 func _input(event):
 	if event.is_action_pressed("ui_cancel"):

@@ -7,7 +7,7 @@ func _ready():
 	generate_town_sprite()
 
 func generate_town_sprite():
-	print("Generating town sprite...")
+	DebugLogger.info("Generating town sprite...")
 	
 	var image = Image.create(SPRITE_SIZE, SPRITE_SIZE, false, Image.FORMAT_RGBA8)
 	image.fill(Color(0, 0, 0, 0))  # Transparent background
@@ -29,11 +29,11 @@ func generate_town_sprite():
 			file.store_buffer(data)
 			user_file.close()
 		file.close()
-		print("Sprite saved to project assets")
+		DebugLogger.info("Sprite saved to project assets")
 	else:
-		print("Could not save to project assets, saved to user directory only")
+		DebugLogger.info(str("Could not save to project assets, saved to user directory only"))
 	
-	print("Town sprite saved to: ", path)
+	DebugLogger.info(str("Town sprite saved to: ") + " " + str(path))
 	
 	# Also create texture and show it
 	var texture = ImageTexture.new()
@@ -42,7 +42,7 @@ func generate_town_sprite():
 	# Create a simple scene to display the sprite
 	_show_sprite(texture)
 	
-	print("Town sprite generation complete!")
+	DebugLogger.info("Town sprite generation complete!")
 
 func _draw_town(image: Image):
 	# Color palette for the town
@@ -131,8 +131,9 @@ func _draw_pixel_if_valid(image: Image, x: int, y: int, color: Color):
 		image.set_pixel(x, y, color)
 
 func _show_sprite(texture: ImageTexture):
-	print("Town sprite texture created successfully!")
-	print("Sprite size: ", texture.get_size())
+	DebugLogger.info("Town sprite texture created successfully!")
+	DebugLogger.info(str("Sprite size: ") + " " + str(texture.get_size()))
 	
 	# Exit after generating
 	get_tree().call_deferred("quit")
+

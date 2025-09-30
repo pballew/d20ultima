@@ -27,9 +27,9 @@ func _ready():
 		if player.has_signal("movement_finished"):
 			if not player.movement_finished.is_connected(_on_player_moved):
 				player.movement_finished.connect(_on_player_moved)
-		print("CoordinateOverlay connected to player")
+		DebugLogger.info("CoordinateOverlay connected to player")
 	else:
-		print("CoordinateOverlay: Could not find player node")
+		DebugLogger.info("CoordinateOverlay: Could not find player node")
 
 func _process(delta):
 	# Update coordinates every frame if we have a player
@@ -64,4 +64,4 @@ func set_player_reference(player_node: Player):
 	if player.has_signal("movement_finished"):
 		if not player.movement_finished.is_connected(_on_player_moved):
 			player.movement_finished.connect(_on_player_moved)
-	print("CoordinateOverlay: Player reference set manually")
+	DebugLogger.info("CoordinateOverlay: Player reference set manually")

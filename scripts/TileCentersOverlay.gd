@@ -59,7 +59,7 @@ func build_points():
 			count += 1
 			if max_dots > 0 and count >= max_dots:
 				return
-	print("TileCentersOverlay: built", dot_points.size(), "dots from", terrain_ref.map_sections.size(), "sections")
+	DebugLogger.info(str("TileCentersOverlay: built") + " " + str(dot_points.size()), "dots from", terrain_ref.map_sections.size(), "sections")
 
 func _draw():
 	if dot_size <= 0:
@@ -73,9 +73,11 @@ func _input(event):
 		# Toggle overlay visibility with F9
 		if event.keycode == KEY_F9:
 			visible = not visible
-			print("TileCentersOverlay visibility:", visible)
+			DebugLogger.info(str("TileCentersOverlay visibility:") + " " + str(visible))
 		# Rebuild with F10 (debug)
 		elif event.keycode == KEY_F10:
 			build_points()
 			queue_redraw()
-			print("TileCentersOverlay rebuilt (", dot_points.size(), " dots)")
+			DebugLogger.info(str("TileCentersOverlay rebuilt (") + " " + str(dot_points.size()), " dots)")
+
+

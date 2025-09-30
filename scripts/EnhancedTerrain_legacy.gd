@@ -69,7 +69,7 @@ func _ready():
 	initialize_multi_map_system()
 	
 	# Generate initial map sections to cover the spawn area and adjacent areas
-	print("Starting terrain generation...")
+	DebugLogger.info("Starting terrain generation...")
 	
 	# Generate all terrain data first (no visuals)
 	# With 25x20 sections, we need more sections to cover the screen area
@@ -91,7 +91,7 @@ func _ready():
 	for section_id in sections_to_generate:
 		create_sprites_for_section(section_id)
 	
-	print("Generated all initial sections")
+	DebugLogger.info("Generated all initial sections")
 	
 	# Don't call ensure_safe_spawn_area here - it generates extra sections
 	# The spawn area should already be walkable from the generated sections
@@ -103,7 +103,7 @@ func _ready():
 	
 	# Show terrain now that generation is complete
 	visible = true
-	print("Terrain generation complete - now visible")
+	DebugLogger.info("Terrain generation complete - now visible")
 
 # Map data management functions
 func get_map_save_statistics() -> Dictionary:
@@ -111,7 +111,7 @@ func get_map_save_statistics() -> Dictionary:
 
 func clear_all_saved_maps():
 	map_data_manager.clear_all_sections()
-	print("Cleared all saved map data")
+	DebugLogger.info("Cleared all saved map data")
 
 func get_saved_sections() -> Array[Vector2i]:
 	return map_data_manager.get_saved_sections()
@@ -119,7 +119,7 @@ func get_saved_sections() -> Array[Vector2i]:
 func force_save_current_sections():
 	for section_id in current_sections:
 		save_section_data(section_id)
-	print("Force saved ", current_sections.size(), " sections")
+	DebugLogger.info(str("Force saved ") + " " + str(current_sections.size()), " sections")
 
 func reload_section_from_disk(section_id: Vector2i):
 	if map_sections.has(section_id):
@@ -143,7 +143,7 @@ func reload_section_from_disk(section_id: Vector2i):
 # Debug function to manually load sections around a point
 func debug_load_sections_around(world_pos: Vector2, radius: int = 1):
 	var center_section = get_section_id_from_world_pos(world_pos)
-	print("Loading sections around ", center_section, " with radius ", radius)
+	DebugLogger.info(str("Loading sections around ") + " " + str(center_section) + " " + str(" with radius ") + " " + str(radius))
 	
 	for x in range(-radius, radius + 1):
 		for y in range(-radius, radius + 1):
@@ -151,7 +151,7 @@ func debug_load_sections_around(world_pos: Vector2, radius: int = 1):
 			if not map_sections.has(section_id):
 				generate_map_section_data_only(section_id)
 				create_sprites_for_section(section_id)
-				print("  Loaded section: ", section_id)
+				DebugLogger.info(str("  Loaded section: ") + " " + str(section_id))
 
 # Console command for debugging
 func _input(event):
@@ -161,11 +161,11 @@ func _input(event):
 			if player:
 				debug_load_sections_around(player.global_position, 2)
 		elif event.keycode == KEY_F2:
-			print("=== Map Data Statistics ===")
-			print("Sections in memory: ", map_sections.size())
-			print("Current sections: ", current_sections.size())
+			DebugLogger.info("=== Map Data Statistics ===")
+			DebugLogger.info(str("Sections in memory: ") + " " + str(map_sections.size()))
+			DebugLogger.info(str("Current sections: ") + " " + str(current_sections.size()))
 			var stats = get_map_save_statistics()
-			print("Save statistics: ", stats)
+			DebugLogger.info(str("Save statistics: ") + " " + str(stats))
 		elif event.keycode == KEY_F3:
 			clear_all_saved_maps()
 			# Also clear in-memory sections and regenerate
@@ -251,7 +251,7 @@ func generate_map_section(section_id: Vector2i):
 	if map_sections.has(section_id):
 		return
 	
-	print("Generating map section: ", section_id)
+	DebugLogger.info(str("Generating map section: ") + " " + str(section_id))
 	
 	# Create new map section
 	var section = MapSection.new(section_id)
@@ -346,7 +346,7 @@ func generate_map_section_data_only(section_id: Vector2i):
 	if map_sections.has(section_id):
 		return
 	
-	print("Generating data for section: ", section_id)
+	DebugLogger.info(str("Generating data for section: ") + " " + str(section_id))
 	
 	# Try to load existing section data first
 	var saved_data = map_data_manager.load_section(section_id)
@@ -358,7 +358,7 @@ func generate_map_section_data_only(section_id: Vector2i):
 	
 	if saved_data and saved_data.terrain_data.size() > 0:
 		# Use saved data
-		print("Loaded existing data for section: ", section_id)
+		DebugLogger.info(str("Loaded existing data for section: ") + " " + str(section_id))
 		section.terrain_data = saved_data.terrain_data.duplicate()
 		
 		# Update global terrain_data for backward compatibility
@@ -417,7 +417,7 @@ func create_sprites_for_section(section_id: Vector2i):
 	if not map_sections.has(section_id):
 		return
 		
-	print("Creating sprites for section: ", section_id)
+	DebugLogger.info(str("Creating sprites for section: ") + " " + str(section_id))
 	var section = map_sections[section_id]
 	
 	# Create all sprites for this section
@@ -452,13 +452,13 @@ func ensure_sections_loaded_around_position(world_pos: Vector2, radius: int = 1)
 
 # Debug function to print map information
 func print_map_debug_info():
-	print("=== Multi-Map Debug Info ===")
-	print("Total sections loaded: ", map_sections.size())
-	print("Sections: ", map_sections.keys())
+	DebugLogger.info("=== Multi-Map Debug Info ===")
+	DebugLogger.info(str("Total sections loaded: ") + " " + str(map_sections.size()))
+	DebugLogger.info(str("Sections: ") + " " + str(map_sections.keys()))
 	var bounds = get_used_rect()
-	print("World bounds (tiles): ", bounds)
-	print("World bounds (pixels): ", Vector2(bounds.position) * TILE_SIZE, " to ", Vector2(bounds.position + bounds.size) * TILE_SIZE)
-	print("=============================")
+	DebugLogger.info("World bounds (tiles): ", bounds)
+	DebugLogger.info("World bounds (pixels): ", Vector2(bounds.position) * TILE_SIZE, " to ", Vector2(bounds.position + bounds.size) * TILE_SIZE)
+	DebugLogger.info("=============================")
 
 # Debug function to draw section boundaries (call this after generation)
 func draw_section_boundaries():
@@ -488,7 +488,7 @@ func create_section_boundary_marker(world_pos: Vector2, section_id: Vector2i):
 
 # Test coordinate conversion functions
 func test_coordinate_conversions():
-	print("=== Testing Coordinate Conversions ===")
+	DebugLogger.info("=== Testing Coordinate Conversions ===")
 	
 	# Test cases: tile positions that should be in different sections
 	var test_cases = [
@@ -506,16 +506,16 @@ func test_coordinate_conversions():
 		var local_pos = coord_info["local_pos"]
 		var reconstructed = world_to_global_tile(local_pos, section_id)
 		
-		print("Tile ", tile_pos, " -> Section ", section_id, " Local ", local_pos, " -> Reconstructed ", reconstructed)
+		DebugLogger.info(str("Tile ") + " " + str(tile_pos) + " " + str(" -> Section ") + " " + str(section_id) + " " + str(" Local ") + " " + str(local_pos) + " " + str(" -> Reconstructed ") + " " + str(reconstructed))
 		if reconstructed != tile_pos:
-			print("ERROR: Coordinate conversion mismatch!")
+			DebugLogger.error("ERROR: Coordinate conversion mismatch!")
 	
-	print("=== End Coordinate Tests ===")
+	DebugLogger.info("=== End Coordinate Tests ===")
 
 func generate_enhanced_terrain():
 	# Legacy function - terrain generation now handled by generate_map_section()
 	# This function is kept for backward compatibility but does nothing
-	print("Note: generate_enhanced_terrain() is deprecated - using multi-map system")
+	DebugLogger.info("Note: generate_enhanced_terrain() is deprecated - using multi-map system")
 
 func determine_terrain_type(elevation: float, moisture: float, base_noise: float) -> int:
 	# Ocean and lakes (very low elevation)
@@ -957,3 +957,5 @@ func get_used_rect() -> Rect2i:
 	var height = max_tile_y - min_tile_y + 1
 	
 	return Rect2i(Vector2i(min_tile_x, min_tile_y), Vector2i(width, height))
+
+

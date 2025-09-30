@@ -42,7 +42,7 @@ func setup_from_monster_data(data: MonsterData):
 	# Calculate and set hit points
 	max_health = data.calculate_hit_points()
 	current_health = max_health
-	print("Monster ", data.monster_name, " calculated health: ", max_health)
+	DebugLogger.info("Monster %s calculated health: %s" % [str(data.monster_name), str(max_health)])
 	
 	# Initialize special attack uses (3.5 style)
 	for attack in data.special_attacks:
@@ -143,7 +143,7 @@ func take_damage(amount: int, damage_type: String = "physical"):
 	
 	# Check for damage immunity
 	if has_damage_immunity(damage_type):
-		print(character_name + " is immune to " + damage_type + " damage!")
+		DebugLogger.info(character_name + " is immune to " + damage_type + " damage!")
 		return
 	
 	# Apply damage resistance
@@ -151,7 +151,7 @@ func take_damage(amount: int, damage_type: String = "physical"):
 		var resistance = get_damage_resistance_value(damage_type)
 		final_damage = max(0, final_damage - resistance)
 		if final_damage < amount:
-			print(character_name + " resists " + str(amount - final_damage) + " points of " + damage_type + " damage!")
+			DebugLogger.info(character_name + " resists " + str(amount - final_damage) + " points of " + damage_type + " damage!")
 	
 	# Apply damage reduction (e.g., "5/magic")
 	if monster_data.damage_reduction != "":
@@ -159,13 +159,12 @@ func take_damage(amount: int, damage_type: String = "physical"):
 		if dr_parts.size() >= 2:
 			var dr_amount = dr_parts[0].to_int()
 			var dr_type = dr_parts[1]
-			
 			# For simplicity, assume most attacks don't bypass DR
 			if damage_type == "physical":
 				final_damage = max(0, final_damage - dr_amount)
 				if final_damage < amount:
-					print(character_name + "'s damage reduction absorbs " + str(amount - final_damage) + " damage!")
-	
+					DebugLogger.info(character_name + "'s damage reduction absorbs " + str(amount - final_damage) + " damage!")
+
 	super.take_damage(final_damage)
 
 # Override for spell resistance
@@ -174,3 +173,4 @@ func resist_spell(spell_level: int, caster_level: int) -> bool:
 		var roll = randi_range(1, 20)
 		return (roll + caster_level) < monster_data.spell_resistance
 	return false
+

@@ -24,7 +24,7 @@ func use_item(character: Character):
 		ItemType.CONSUMABLE:
 			if healing_amount > 0:
 				character.heal(healing_amount)
-				print(character.name, " used ", item_name, " and healed for ", healing_amount, " HP")
+				DebugLogger.info(str(character.name) + " " + str(" used ") + " " + str(item_name) + " " + str(" and healed for ") + " " + str(healing_amount) + " " + str(" HP"))
 			uses -= 1
 			if uses <= 0:
 				character.remove_item(self)
@@ -32,3 +32,5 @@ func use_item(character: Character):
 			character.equip_weapon(self)
 		ItemType.ARMOR:
 			character.equip_armor(self)
+
+

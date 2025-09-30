@@ -75,13 +75,13 @@ func roll_dice(dice_string: String) -> int:
 func make_attack_roll(target: Character) -> bool:
 	var roll = roll_d20()
 	var total = roll + attack_bonus + get_modifier(strength)
-	print("Attack roll: ", roll, " + ", attack_bonus, " + ", get_modifier(strength), " = ", total)
+	DebugLogger.info("Attack roll: %d + %d + %d = %d" % [roll, attack_bonus, get_modifier(strength), total])
 	return total >= target.armor_class
 
 func deal_damage(target: Character):
 	var damage = roll_dice(damage_dice) + get_modifier(strength)
 	target.take_damage(damage)
-	print("Dealt ", damage, " damage to ", target.name)
+	DebugLogger.info("Dealt %d damage to %s" % [damage, str(target.name)])
 
 func take_damage(amount: int, damage_type: String = "physical"):
 	current_health -= amount
@@ -90,7 +90,7 @@ func take_damage(amount: int, damage_type: String = "physical"):
 	
 	# Print health description for non-player characters
 	if not self is Player:
-		print(character_name, " ", get_health_description())
+		DebugLogger.info("%s %s" % [str(character_name), str(get_health_description())])
 	
 	if current_health <= 0:
 		die()
@@ -127,7 +127,7 @@ func heal(amount: int):
 	health_changed.emit(current_health, max_health)
 
 func die():
-	print(character_name, " has died!")
+	DebugLogger.info("%s has died!" % str(character_name))
 	died.emit()
 
 func make_saving_throw(type: String, difficulty_class: int) -> bool:
@@ -149,7 +149,7 @@ func make_saving_throw(type: String, difficulty_class: int) -> bool:
 			modifier = get_modifier(charisma)
 	
 	var total = roll + modifier
-	print("Saving throw (", type, "): ", roll, " + ", modifier, " = ", total, " vs DC ", difficulty_class)
+	DebugLogger.info("Saving throw (%s): %d + %d = %d vs DC %d" % [str(type), roll, modifier, total, difficulty_class])
 	return total >= difficulty_class
 
 func add_item(item: Item):
@@ -229,7 +229,7 @@ func gain_experience(xp_amount: int) -> bool:
 	var old_level = level
 	experience += xp_amount
 	
-	print("Gained ", xp_amount, " XP! Total: ", experience)
+	DebugLogger.info("Gained %d XP! Total: %d" % [xp_amount, experience])
 	
 	# Check for level-ups
 	while experience >= get_xp_for_next_level() and level < 20:
@@ -246,7 +246,7 @@ func level_up():
 	var old_level = level
 	level += 1
 	
-	print("LEVEL UP! ", character_name, " is now level ", level)
+	DebugLogger.info("LEVEL UP! %s is now level %d" % [str(character_name), level])
 	
 	# Increase HP based on constitution modifier + base HP per level
 	var hp_gain = 6 + get_modifier(constitution)  # Assumes fighter-like progression
@@ -255,12 +255,12 @@ func level_up():
 	max_health += hp_gain
 	current_health += hp_gain  # Heal on level-up
 	
-	print("HP increased by ", hp_gain, "! New max HP: ", max_health)
+	DebugLogger.info("HP increased by %d! New max HP: %d" % [hp_gain, max_health])
 	
 	# Recalculate all derived stats
 	update_derived_stats()
 	
-	print("Level ", old_level, " -> ", level, " complete!")
+	DebugLogger.info("Level %d -> %d complete!" % [old_level, level])
 
 # Award XP for various activities
 func award_xp_for_exploration() -> int:
@@ -286,3 +286,5 @@ func award_xp_for_quest(difficulty_level: int) -> int:
 	var base_xp = difficulty_level * 200
 	gain_experience(base_xp)
 	return base_xp
+
+

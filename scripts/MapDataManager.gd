@@ -81,7 +81,7 @@ func save_section(section_data: MapSectionData) -> bool:
 	var file = FileAccess.open(file_path, FileAccess.WRITE)
 	
 	if not file:
-		print("Failed to open file for writing: ", file_path)
+		DebugLogger.error("Failed to open file for writing: %s" % file_path)
 		return false
 	
 	var data_dict = section_data.to_dict()
@@ -89,7 +89,7 @@ func save_section(section_data: MapSectionData) -> bool:
 	file.store_string(json_string)
 	file.close()
 	
-	print("Saved map section ", section_data.section_id, " to ", file_path)
+	DebugLogger.info("Saved map section %s to %s" % [section_data.section_id, file_path])
 	return true
 
 # Load a map section from file
@@ -97,12 +97,12 @@ func load_section(section_id: Vector2i) -> MapSectionData:
 	var file_path = get_section_file_path(section_id)
 	
 	if not FileAccess.file_exists(file_path):
-		print("No saved data found for section ", section_id)
+		DebugLogger.warn("No saved data found for section %s" % section_id)
 		return null
 	
 	var file = FileAccess.open(file_path, FileAccess.READ)
 	if not file:
-		print("Failed to open file for reading: ", file_path)
+		DebugLogger.error("Failed to open file for reading: %s" % file_path)
 		return null
 	
 	var json_string = file.get_as_text()
@@ -112,13 +112,13 @@ func load_section(section_id: Vector2i) -> MapSectionData:
 	var parse_result = json.parse(json_string)
 	
 	if parse_result != OK:
-		print("Failed to parse JSON for section ", section_id)
+		DebugLogger.error("Failed to parse JSON for section %s" % section_id)
 		return null
 	
 	var section_data = MapSectionData.new(section_id)
 	section_data.from_dict(json.data)
 	
-	print("Loaded map section ", section_id, " from ", file_path)
+	DebugLogger.info("Loaded map section %s from %s" % [section_id, file_path])
 	return section_data
 
 # Check if a section exists on disk
@@ -131,8 +131,8 @@ func delete_section(section_id: Vector2i) -> bool:
 	var file_path = get_section_file_path(section_id)
 	if FileAccess.file_exists(file_path):
 		var dir = DirAccess.open("user://")
-		if dir.remove(file_path.trim_prefix("user://")) == OK:
-			print("Deleted map section ", section_id)
+		if dir and dir.remove(file_path.trim_prefix("user://")) == OK:
+			DebugLogger.info("Deleted map section %s" % [str(section_id)])
 			return true
 	return false
 
@@ -169,7 +169,7 @@ func clear_all_sections() -> bool:
 		if not delete_section(section_id):
 			success = false
 	
-	print("Cleared ", sections.size(), " map sections")
+	DebugLogger.info("Cleared %d map sections" % sections.size())
 	return success
 
 # Helper functions

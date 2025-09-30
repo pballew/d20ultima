@@ -102,7 +102,7 @@ func _draw_class_emblem(image: Image, glyph: Dictionary):
 			for y in range(10, 18): image.set_pixel(24, y, color)
 
 func export_all_player_sprites():
-	print("Generating all player sprite combinations...")
+	DebugLogger.info("Generating all player sprite combinations...")
 	
 	# Create sprites directory if it doesn't exist
 	var dir = DirAccess.open("res://")
@@ -122,15 +122,17 @@ func export_all_player_sprites():
 			var result = image.save_png("res://" + filename)
 			
 			if result == OK:
-				print("Generated: ", filename)
+				DebugLogger.info(str("Generated: ") + " " + str(filename))
 				total_generated += 1
 			else:
-				print("Failed to save: ", filename)
+				DebugLogger.info(str("Failed to save: ") + " " + str(filename))
 	
-	print("Generated ", total_generated, " player sprites in assets/player_sprites/")
+	DebugLogger.info(str("Generated ") + " " + str(total_generated) + " " + str(" player sprites in assets/player_sprites/"))
 	return total_generated
 
 func clear_cache():
 	"""Clear the texture cache to free memory"""
 	_cache.clear()
-	print("PlayerIconFactory cache cleared")
+	DebugLogger.info("PlayerIconFactory cache cleared")
+
+

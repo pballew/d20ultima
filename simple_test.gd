@@ -1,10 +1,10 @@
 extends SceneTree
 func _ready():
-    print("=== SIMPLE HIT DICE TEST ===")
+    DebugLogger.info("=== SIMPLE HIT DICE TEST ===")
     var char_data = CharacterData.new()
     char_data.character_class = CharacterData.CharacterClass.FIGHTER
-    print("Fighter hit die roll: ", char_data.roll_class_hit_die())
+    DebugLogger.info("Fighter hit die roll: %s" % char_data.roll_class_hit_die())
     char_data.character_class = CharacterData.CharacterClass.WIZARD
-    print("Wizard hit die roll: ", char_data.roll_class_hit_die())
-    print("=== TEST COMPLETE ===")
+    DebugLogger.info("Wizard hit die roll: %s" % char_data.roll_class_hit_die())
+    DebugLogger.info("=== TEST COMPLETE ===")
     quit()

@@ -52,17 +52,17 @@ var boundary_markers: Array = []
 
 func _ready():
 	# FORCE REGENERATION: Create new bright TileSet for debugging
-	print("Forcing generation of new bright TileSet...")
+	DebugLogger.info("Forcing generation of new bright TileSet...")
 	terrain_tileset = generate_terrain_tileset()
 	# Save for future use
 	ResourceSaver.save(terrain_tileset, "res://assets/debug_bright_tileset.tres")
-	print("Generated and saved new bright TileSet")
+	DebugLogger.info("Generated and saved new bright TileSet")
 	
 	if not terrain_tileset:
-		print("Error: Could not create terrain TileSet")
+		DebugLogger.info("Error: Could not create terrain TileSet")
 		return
 	
-	print("TileSet created successfully - sources: ", terrain_tileset.get_source_count())
+	DebugLogger.info(str("TileSet created successfully - sources: ") + " " + str(terrain_tileset.get_source_count()))
 	
 	# Hide initially while generating
 	visible = false
@@ -75,7 +75,7 @@ func _ready():
 	# Initialize noise generators (same as legacy)
 	setup_noise_generators()
 	
-	print("Starting terrain generation...")
+	DebugLogger.info("Starting terrain generation...")
 	
 	# Generate initial batch of sections to cover screen area
 	var sections_to_generate = []
@@ -91,7 +91,7 @@ func _ready():
 		generate_map_section_data_only(section_id)
 		create_tilemap_for_section(section_id)
 	
-	print("Generated all initial sections")
+	DebugLogger.info("Generated all initial sections")
 	
 	# add_boundary_markers()  # Disabled: remove section boundary overlays
 	
@@ -101,7 +101,7 @@ func _ready():
 	# Test coordinate conversions
 	test_coordinate_conversions()
 	
-	print("Terrain generation complete - now visible")
+	DebugLogger.info("Terrain generation complete - now visible")
 	visible = true
 
 func setup_noise_generators():
@@ -122,12 +122,12 @@ func setup_noise_generators():
 	moisture_noise.noise_type = FastNoiseLite.TYPE_CELLULAR
 
 func generate_map_section_data_only(section_id: Vector2i):
-	print("Generating data for section: ", section_id)
+	DebugLogger.info(str("Generating data for section: ") + " " + str(section_id))
 	
 	# Try to load existing data first
 	var saved_data = map_data_manager.load_section(section_id)
 	if saved_data:
-		print("Loaded existing data for section: ", section_id)
+		DebugLogger.info(str("Loaded existing data for section: ") + " " + str(section_id))
 		restore_section_from_saved_data(section_id, saved_data)
 		return
 	
@@ -143,9 +143,9 @@ func restore_section_from_saved_data(section_id: Vector2i, saved_data):
 	# Restore town data if it exists
 	if saved_data.town_data.size() > 0:
 		section.town_data = saved_data.town_data.duplicate()
-		print("Restored ", saved_data.town_data.size(), " towns for section ", section_id)
+		DebugLogger.info(str("Restored ") + " " + str(saved_data.town_data.size()), " towns for section ", section_id)
 	else:
-		print("No towns found in saved data for section ", section_id, " - generating new towns")
+		DebugLogger.info(str("No towns found in saved data for section ") + " " + str(section_id) + " " + str(" - generating new towns"))
 		# Generate towns for sections that don't have any
 		map_sections[section_id] = section
 		generate_towns_for_section(section_id)
@@ -157,7 +157,7 @@ func restore_section_from_saved_data(section_id: Vector2i, saved_data):
 	current_sections.append(section_id)
 
 func generate_fresh_section_data(section_id: Vector2i):
-	print("Generating new section: ", section_id)
+	DebugLogger.info(str("Generating new section: ") + " " + str(section_id))
 	
 	var section = TileMapSection.new(section_id, terrain_tileset)
 	map_sections[section_id] = section
@@ -193,15 +193,15 @@ func generate_fresh_section_data(section_id: Vector2i):
 	generate_towns_for_section(section_id)
 	
 	# FORCE town regeneration for debugging (even on existing sections)
-	print("FORCING town generation for existing section: ", section_id)
+	DebugLogger.info(str("FORCING town generation for existing section: ") + " " + str(section_id))
 	generate_towns_for_section(section_id)
 
 func create_tilemap_for_section(section_id: Vector2i):
 	if not map_sections.has(section_id):
-		print("Warning: Trying to create TileMap for non-existent section: ", section_id)
+		DebugLogger.info(str("Warning: Trying to create TileMap for non-existent section: ") + " " + str(section_id))
 		return
 	
-	print("Creating TileMap for section: ", section_id)
+	DebugLogger.info(str("Creating TileMap for section: ") + " " + str(section_id))
 	var section = map_sections[section_id]
 	
 	# Calculate section position in world coordinates
@@ -219,7 +219,7 @@ func create_tilemap_for_section(section_id: Vector2i):
 	section.tilemap.modulate = Color.WHITE
 	section.tilemap.y_sort_enabled = false
 	
-	print("Created TileMap at position: ", section.tilemap.position, " for section ", section_id)
+	DebugLogger.info(str("Created TileMap at position: ") + " " + str(section.tilemap.position) + " " + str(" for section ") + " " + str(section_id))
 	
 	# Populate the TileMap with terrain data using native tiles
 	populate_native_tilemap(section_id)
@@ -230,10 +230,10 @@ func populate_native_tilemap(section_id: Vector2i):
 		return
 	
 	var section = map_sections[section_id]
-	print("Populating TileMap for section ", section_id, " with ", section.terrain_data.size(), " tiles")
+	DebugLogger.info(str("Populating TileMap for section ") + " " + str(section_id) + " " + str(" with ") + " " + str(section.terrain_data.size()), " tiles")
 	
 	if not section.tilemap.tile_set:
-		print("ERROR: No TileSet assigned to TileMap for section ", section_id)
+		DebugLogger.error(str("ERROR: No TileSet assigned to TileMap for section ") + " " + str(section_id))
 		return
 	
 	var tiles_placed = 0
@@ -250,7 +250,7 @@ func populate_native_tilemap(section_id: Vector2i):
 		section.tilemap.set_cell(0, tilemap_coords, 0, atlas_coords)
 		tiles_placed += 1
 	
-	print("Placed ", tiles_placed, " tiles in section ", section_id)
+	DebugLogger.info(str("Placed ") + " " + str(tiles_placed) + " " + str(" tiles in section ") + " " + str(section_id))
 	
 	# DEBUG: Place bright test tiles with different colors
 	var center_coords = Vector2i(MAP_WIDTH/2, MAP_HEIGHT/2)
@@ -259,7 +259,7 @@ func populate_native_tilemap(section_id: Vector2i):
 	section.tilemap.set_cell(0, center_coords + Vector2i(1, 0), 0, Vector2i(1, 0))  # DIRT (brown) 
 	section.tilemap.set_cell(0, center_coords + Vector2i(0, 1), 0, Vector2i(3, 0))  # WATER (blue)
 	section.tilemap.set_cell(0, center_coords + Vector2i(1, 1), 0, Vector2i(5, 0))  # MOUNTAIN (gray)
-	print("Placed debug color tiles at center of section ", section_id)
+	DebugLogger.info(str("Placed debug color tiles at center of section ") + " " + str(section_id))
 
 func get_terrain_color(terrain_type: int) -> Color:
 	# Same color mapping as legacy system
@@ -344,7 +344,7 @@ func generate_towns_for_section(section_id: Vector2i):
 	
 	# Try to place 1-2 towns per section, with spacing constraints
 	var town_attempts = rng.randi_range(0, 2)  # 0-2 towns per section
-	print("Section ", section_id, " attempting to place ", town_attempts, " towns")
+	DebugLogger.info(str("Section ") + " " + str(section_id) + " " + str(" attempting to place ") + " " + str(town_attempts) + " " + str(" towns"))
 	
 	for attempt in range(town_attempts):
 		# Random position within section
@@ -354,12 +354,12 @@ func generate_towns_for_section(section_id: Vector2i):
 		var global_pos = world_to_global_tile(local_pos, section_id)
 		
 		# Check if this position is suitable for a town
-		print("Trying to place town at local_pos: ", local_pos, " global_pos: ", global_pos)
+		DebugLogger.info(str("Trying to place town at local_pos: ") + " " + str(local_pos) + " " + str(" global_pos: ") + " " + str(global_pos))
 		if can_place_town_at_position(local_pos, section_id):
-			print("Position is suitable for town")
+			DebugLogger.info("Position is suitable for town")
 			# Check spacing from other towns
 			if is_town_spacing_valid(global_pos):
-				print("Town spacing is valid")
+				DebugLogger.info("Town spacing is valid")
 				# Place the town
 				section.terrain_data[local_pos] = TerrainType.TOWN
 				
@@ -367,29 +367,29 @@ func generate_towns_for_section(section_id: Vector2i):
 				var town_data = TownNameGen.generate_town_data(global_pos, rng.seed + attempt)
 				store_town_data(section_id, local_pos, town_data)
 				
-				print("*** PLACED TOWN '", town_data.name, "' at ", global_pos, " in section ", section_id, " ***")
+				DebugLogger.info(str("*** PLACED TOWN '") + " " + str(town_data.name) + " " + str("' at ") + " " + str(global_pos) + " " + str(" in section ") + " " + str(section_id) + " " + str(" ***"))
 			else:
-				print("Town spacing invalid at ", global_pos)
+				DebugLogger.info(str("Town spacing invalid at ") + " " + str(global_pos))
 		else:
-			print("Position not suitable for town at ", local_pos)
+			DebugLogger.info(str("Position not suitable for town at ") + " " + str(local_pos))
 
 func can_place_town_at_position(local_pos: Vector2i, section_id: Vector2i) -> bool:
-	print("*** CAN_PLACE_TOWN_AT_POSITION CALLED FOR ", local_pos, " in section ", section_id, " ***")
+	DebugLogger.info(str("*** CAN_PLACE_TOWN_AT_POSITION CALLED FOR ") + " " + str(local_pos) + " " + str(" in section ") + " " + str(section_id) + " " + str(" ***"))
 	
 	# Towns can only be placed on suitable terrain types
 	var section = map_sections[section_id]
 	if not section.terrain_data.has(local_pos):
-		print("  ERROR: No terrain data at local_pos: ", local_pos)
+		DebugLogger.info(str("  ERROR: No terrain data at local_pos: ") + " " + str(local_pos))
 		return false
 	
 	var terrain_type = section.terrain_data[local_pos]
 	var terrain_name = TerrainType.keys()[terrain_type] if terrain_type < TerrainType.keys().size() else "UNKNOWN"
-	print("  Terrain type at ", local_pos, " is: ", terrain_type, " (", terrain_name, ")")
+	DebugLogger.info(str("  Terrain type at ") + " " + str(local_pos) + " " + str(" is: ") + " " + str(terrain_type) + " " + str(" (") + " " + str(terrain_name) + " " + str("))")
 	
 	# For debugging: Allow towns on any terrain type except water/ocean
 	var forbidden_types = [TerrainType.WATER, TerrainType.OCEAN, TerrainType.LAKE, TerrainType.RIVER]
 	var is_suitable = terrain_type not in forbidden_types
-	print("  Is suitable: ", is_suitable, " (terrain ", terrain_type, " not in forbidden: ", forbidden_types, ")")
+	DebugLogger.info(str("  Is suitable: ") + " " + str(is_suitable) + " " + str(" (terrain ") + " " + str(terrain_type) + " " + str(" not in forbidden: ") + " " + str(forbidden_types) + " " + str("))")
 	return is_suitable
 
 func is_town_spacing_valid(global_pos: Vector2i) -> bool:
@@ -526,9 +526,9 @@ func add_boundary_markers():
 		boundary_markers.append(label)
 
 func print_debug_info():
-	print("=== Multi-Map Debug Info ===")
-	print("Total sections loaded: ", map_sections.size())
-	print("Sections: ", current_sections)
+	DebugLogger.info("=== Multi-Map Debug Info ===")
+	DebugLogger.info(str("Total sections loaded: ") + " " + str(map_sections.size()))
+	DebugLogger.info(str("Sections: ") + " " + str(current_sections))
 	
 	# Calculate world bounds
 	if current_sections.size() > 0:
@@ -551,13 +551,13 @@ func print_debug_info():
 		var world_size_x = world_max_tile_x - world_min_tile_x + 1
 		var world_size_y = world_max_tile_y - world_min_tile_y + 1
 		
-		print("World bounds (tiles): [P: (", world_min_tile_x, ", ", world_min_tile_y, "), S: (", world_size_x, ", ", world_size_y, ")]")
-		print("World bounds (pixels): (", world_min_tile_x * TILE_SIZE, ", ", world_min_tile_y * TILE_SIZE, ") to (", world_max_tile_x * TILE_SIZE, ", ", world_max_tile_y * TILE_SIZE, ")")
+		DebugLogger.info("World bounds (tiles): [P: (", world_min_tile_x, ", ", world_min_tile_y, "), S: (", world_size_x, ", ", world_size_y, ")]")
+		DebugLogger.info("World bounds (pixels): (", world_min_tile_x * TILE_SIZE, ", ", world_min_tile_y * TILE_SIZE, ") to (", world_max_tile_x * TILE_SIZE, ", ", world_max_tile_y * TILE_SIZE, ")")
 	
-	print("=============================")
+	DebugLogger.info("=============================")
 
 func test_coordinate_conversions():
-	print("=== Testing Coordinate Conversions ===")
+	DebugLogger.info("=== Testing Coordinate Conversions ===")
 	
 	# Test various tile positions
 	var test_tiles = [
@@ -575,12 +575,12 @@ func test_coordinate_conversions():
 		var local_pos = section_data["local_pos"]
 		var reconstructed = world_to_global_tile(local_pos, section_id)
 		
-		print("Tile ", tile, " -> Section ", section_id, " Local ", local_pos, " -> Reconstructed ", reconstructed)
+		DebugLogger.info(str("Tile ") + " " + str(tile) + " " + str(" -> Section ") + " " + str(section_id) + " " + str(" Local ") + " " + str(local_pos) + " " + str(" -> Reconstructed ") + " " + str(reconstructed))
 		
 		if reconstructed != tile:
-			print("ERROR: Coordinate conversion mismatch!")
+			DebugLogger.error("ERROR: Coordinate conversion mismatch!")
 	
-	print("=== End Coordinate Tests ===")
+	DebugLogger.info("=== End Coordinate Tests ===")
 
 
 
@@ -590,7 +590,7 @@ func get_map_save_statistics() -> Dictionary:
 
 func clear_all_saved_maps():
 	map_data_manager.clear_all_sections()
-	print("Cleared all saved map data")
+	DebugLogger.info("Cleared all saved map data")
 
 func get_saved_sections() -> Array[Vector2i]:
 	return map_data_manager.get_saved_sections()
@@ -598,7 +598,7 @@ func get_saved_sections() -> Array[Vector2i]:
 func force_save_current_sections():
 	for section_id in current_sections:
 		save_section_data(section_id)
-	print("Force saved ", current_sections.size(), " sections")
+	DebugLogger.info(str("Force saved ") + " " + str(current_sections.size()), " sections")
 
 # Debug console commands (same as legacy)
 func _input(event):
@@ -608,11 +608,11 @@ func _input(event):
 			if player:
 				debug_load_sections_around(player.global_position, 2)
 		elif event.keycode == KEY_F2:
-			print("=== Map Data Statistics ===")
-			print("Sections in memory: ", map_sections.size())
-			print("Current sections: ", current_sections.size())
+			DebugLogger.info("=== Map Data Statistics ===")
+			DebugLogger.info(str("Sections in memory: ") + " " + str(map_sections.size()))
+			DebugLogger.info(str("Current sections: ") + " " + str(current_sections.size()))
 			var stats = get_map_save_statistics()
-			print("Save statistics: ", stats)
+			DebugLogger.info(str("Save statistics: ") + " " + str(stats))
 		elif event.keycode == KEY_F3:
 			clear_all_saved_maps()
 			# Clear in-memory sections and regenerate
@@ -632,7 +632,7 @@ func _input(event):
 
 # TileSet generation (embedded version of TileSetGenerator)
 func generate_terrain_tileset() -> TileSet:
-	print("Generating terrain TileSet with texture atlas...")
+	DebugLogger.info("Generating terrain TileSet with texture atlas...")
 	
 	# Reference to shared terrain colors
 	var terrain_colors_resource = preload("res://scripts/TerrainColors.gd")
@@ -656,7 +656,7 @@ func generate_terrain_tileset() -> TileSet:
 		
 		# Create the tile
 		atlas_source.create_tile(atlas_coords)
-		print("Created tile for terrain ", terrain_id, " at atlas coords ", atlas_coords)
+		DebugLogger.info(str("Created tile for terrain ") + " " + str(terrain_id) + " " + str(" at atlas coords ") + " " + str(atlas_coords))
 	
 	# Add the atlas source to the tileset
 	tileset.add_source(atlas_source, 0)
@@ -664,7 +664,7 @@ func generate_terrain_tileset() -> TileSet:
 	# Keep a reference to the atlas texture so other systems can extract subregions
 	terrain_atlas_texture = atlas_texture
 
-	print("TileSet generation complete!")
+	DebugLogger.info("TileSet generation complete!")
 	return tileset
 
 
@@ -716,7 +716,7 @@ func create_terrain_atlas(terrain_colors: Dictionary) -> ImageTexture:
 	var image = Image.create(atlas_width, atlas_height, false, Image.FORMAT_RGBA8)
 	image.fill(Color.MAGENTA)  # Default color for unused areas
 	
-	print("Creating detailed terrain atlas with patterns...")
+	DebugLogger.info("Creating detailed terrain atlas with patterns...")
 	
 	# Generate each terrain tile using TileSetGenerator's pattern functions
 	for terrain_id in range(15):
@@ -727,17 +727,17 @@ func create_terrain_atlas(terrain_colors: Dictionary) -> ImageTexture:
 		# Use TileSetGenerator's create_terrain_tile_pattern method for detailed patterns
 		tileset_generator.create_terrain_tile_pattern(image, terrain_id, x, y)
 		
-		print("Generated detailed pattern for terrain ", terrain_id, " at (", x, ", ", y, ")")
+		DebugLogger.info(str("Generated detailed pattern for terrain ") + " " + str(terrain_id) + " " + str(" at (") + " " + str(x) + " " + str(", ") + " " + str(y) + " " + str("))")
 	
 	# Create texture from image
 	var texture = ImageTexture.new()
 	texture.set_image(image)
-	print("Terrain atlas created with detailed patterns including town sprites!")
+	DebugLogger.info("Terrain atlas created with detailed patterns including town sprites!")
 	return texture
 
 func debug_load_sections_around(world_pos: Vector2, radius: int = 1):
 	var center_section = get_section_id_from_world_pos(world_pos)
-	print("Loading sections around ", center_section, " with radius ", radius)
+	DebugLogger.info(str("Loading sections around ") + " " + str(center_section) + " " + str(" with radius ") + " " + str(radius))
 	
 	for x in range(-radius, radius + 1):
 		for y in range(-radius, radius + 1):
@@ -745,7 +745,7 @@ func debug_load_sections_around(world_pos: Vector2, radius: int = 1):
 			if not map_sections.has(section_id):
 				generate_map_section_data_only(section_id)
 				create_tilemap_for_section(section_id)
-				print("  Loaded section: ", section_id)
+				DebugLogger.info(str("  Loaded section: ") + " " + str(section_id))
 
 func get_town_data_at_position(world_pos: Vector2) -> Dictionary:
 	# Convert world position to tile coordinate (top-left of tile)
@@ -767,15 +767,16 @@ func get_town_data_at_position(world_pos: Vector2) -> Dictionary:
 
 func print_section_towns(section_id: Vector2i):
 	"""Debug function to print all towns in a section"""
-	print("=== SECTION TOWNS DEBUG for ", section_id, " ===")
+	DebugLogger.info(str("=== SECTION TOWNS DEBUG for ") + " " + str(section_id) + " " + str(" ==="))
 	if map_sections.has(section_id):
 		var section = map_sections[section_id]
-		print("Section found, town count: ", section.town_data.size())
+		DebugLogger.info(str("Section found, town count: ") + " " + str(section.town_data.size()))
 		for local_pos in section.town_data:
 			var town_data = section.town_data[local_pos]
 			var global_pos = world_to_global_tile(local_pos, section_id)
 			var world_pos = Vector2(global_pos.x * TILE_SIZE, global_pos.y * TILE_SIZE)
-			print("Town '", town_data.get("name", "Unknown"), "' at local ", local_pos, " global tile ", global_pos, " world pos ", world_pos)
+			DebugLogger.info(str("Town '") + " " + str(town_data.get("name", "Unknown")), "' at local ", local_pos, " global tile ", global_pos, " world pos ", world_pos)
 	else:
-		print("Section ", section_id, " not found!")
-	print("=== END SECTION TOWNS DEBUG ===")
+		DebugLogger.info(str("Section ") + " " + str(section_id) + " " + str(" not found!"))
+	DebugLogger.info("=== END SECTION TOWNS DEBUG ===")
+

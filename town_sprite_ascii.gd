@@ -2,25 +2,25 @@ extends Node
 
 # Script to create a simple town sprite display in the console
 func _ready():
-	print("Generating town sprite pattern...")
-	
+	DebugLogger.info("Generating town sprite pattern...")
+
 	var sprite_pattern = create_town_ascii_art()
-	print("\nGenerated Town Sprite (32x32 pixels):")
-	print("=====================================")
+	DebugLogger.info("\nGenerated Town Sprite (32x32 pixels):")
+	DebugLogger.info("=====================================")
 	for line in sprite_pattern:
-		print(line)
-	print("=====================================")
-	
-	print("\nLegend:")
-	print("  . = Transparent")
-	print("  # = Stone walls (light gray)")
-	print("  ^ = Roof (red-brown)")
-	print("  | = Chimney (dark gray)")
-	print("  * = Smoke (light gray)")
-	print("  o = Windows (yellow)")
-	print("  █ = Door (dark brown)")
-	print("  ≡ = Wood building (brown)")
-	
+		DebugLogger.info(line)
+	DebugLogger.info("=====================================")
+    
+	DebugLogger.info("\nLegend:")
+	DebugLogger.info("  . = Transparent")
+	DebugLogger.info("  # = Stone walls (light gray)")
+	DebugLogger.info("  ^ = Roof (red-brown)")
+	DebugLogger.info("  | = Chimney (dark gray)")
+	DebugLogger.info("  * = Smoke (light gray)")
+	DebugLogger.info("  o = Windows (yellow)")
+	DebugLogger.info("  █ = Door (dark brown)")
+	DebugLogger.info("  ≡ = Wood building (brown)")
+
 	get_tree().quit()
 
 func create_town_ascii_art() -> Array:

@@ -197,7 +197,7 @@ func update_display():
 
 func _on_create_character():
 	if name_input.text.strip_edges() == "":
-		print("Please enter a character name")
+		DebugLogger.info("Please enter a character name")
 		return
 	
 	character_data.character_name = name_input.text.strip_edges()
@@ -232,7 +232,7 @@ func _on_character_file_selected(path: String):
 		
 		character_loaded.emit(loaded_character)
 	else:
-		print("Failed to load character from: ", path)
+		DebugLogger.info(str("Failed to load character from: ") + " " + str(path))
 
 func save_character(char_data: CharacterData):
 	# Ensure characters directory exists
@@ -243,6 +243,8 @@ func save_character(char_data: CharacterData):
 	var result = ResourceSaver.save(char_data, save_path)
 	
 	if result == OK:
-		print("Character saved to: ", save_path)
+		DebugLogger.info(str("Character saved to: ") + " " + str(save_path))
 	else:
-		print("Failed to save character!")
+		DebugLogger.info("Failed to save character!")
+
+

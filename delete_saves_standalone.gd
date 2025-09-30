@@ -1,7 +1,7 @@
 extends SceneTree
 
 func _init():
-	print("Deleting all saved characters and save data (standalone)...")
+	DebugLogger.info("Deleting all saved characters and save data (standalone)...")
 	var characters_deleted := 0
 	var char_dir_path := "user://characters/"
 
@@ -13,7 +13,7 @@ func _init():
 			var file_name := dir.get_next()
 			while file_name != "":
 				if not file_name.begins_with(".") and file_name.ends_with(".tres"):
-					print("Deleting character file: ", file_name)
+					DebugLogger.info(str("Deleting character file: ") + " " + str(file_name))
 					dir.remove(file_name)
 					characters_deleted += 1
 				file_name = dir.get_next()
@@ -26,10 +26,12 @@ func _init():
 	# Delete main save file
 	var save_file := "user://game_save.dat"
 	if FileAccess.file_exists(save_file):
-		print("Deleting main save file: ", save_file)
+		DebugLogger.info(str("Deleting main save file: ") + " " + str(save_file))
 		var parent := DirAccess.open("user://")
 		if parent:
 			parent.remove("game_save.dat")
 
-	print("Deleted ", characters_deleted, " character files and main save data (if present)")
+	DebugLogger.info(str("Deleted ") + " " + str(characters_deleted) + " " + str(" character files and main save data (if present))")
 	quit()
+
+

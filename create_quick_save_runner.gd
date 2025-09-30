@@ -1,7 +1,7 @@
 extends Node
 
 func _ready():
-	print("Creating quick save character...")
+	DebugLogger.info("Creating quick save character...")
 	var c = CharacterData.new()
 	c.character_name = "Quick Hero"
 	c.character_race = CharacterData.CharacterRace.HUMAN
@@ -20,6 +20,7 @@ func _ready():
 	c.world_position = Vector2.ZERO
 	# Save as last played character
 	var ok = SaveSystem.save_game_state(c)
-	print("Quick save created:", ok)
+	DebugLogger.info(str("Quick save created:") + " " + str(ok))
 	await get_tree().create_timer(0.2).timeout
 	get_tree().quit()
+

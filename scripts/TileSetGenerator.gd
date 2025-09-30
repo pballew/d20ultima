@@ -11,7 +11,7 @@ const terrain_colors_resource = preload("res://scripts/TerrainColors.gd")
 const TERRAIN_COLORS = terrain_colors_resource.TERRAIN_COLORS
 
 func generate_terrain_tileset() -> TileSet:
-	print("Generating terrain TileSet with texture atlas...")
+	DebugLogger.info("Generating terrain TileSet with texture atlas...")
 	
 	# Create the TileSet resource
 	var tileset = TileSet.new()
@@ -67,7 +67,7 @@ func generate_terrain_tileset() -> TileSet:
 	# Add the atlas source to the tileset
 	tileset.add_source(atlas_source, 0)
 	
-	print("TileSet generation complete!")
+	DebugLogger.info("TileSet generation complete!")
 	return tileset
 
 func create_terrain_atlas() -> ImageTexture:
@@ -76,11 +76,11 @@ func create_terrain_atlas() -> ImageTexture:
 	var enhanced_texture = load(enhanced_texture_path) as Texture2D
 	
 	if enhanced_texture and enhanced_texture is ImageTexture:
-		print("Using enhanced terrain atlas from: ", enhanced_texture_path)
+		DebugLogger.info(str("Using enhanced terrain atlas from: ") + " " + str(enhanced_texture_path))
 		return enhanced_texture
 	
 	# Fallback: Create atlas with detailed patterns if enhanced version not found
-	print("Enhanced atlas not found, generating detailed patterns...")
+	DebugLogger.info(str("Enhanced atlas not found, generating detailed patterns..."))
 	var atlas_width = 8 * TILE_SIZE  # 8 tiles wide
 	var atlas_height = 2 * TILE_SIZE  # 2 tiles high (for 14 terrain types)
 	
@@ -452,17 +452,17 @@ func get_terrain_name(terrain_id: int) -> String:
 func save_tileset_to_file(tileset: TileSet, filepath: String):
 	var result = ResourceSaver.save(tileset, filepath)
 	if result == OK:
-		print("TileSet saved to: ", filepath)
+		DebugLogger.info(str("TileSet saved to: ") + " " + str(filepath))
 	else:
-		print("Failed to save TileSet: ", result)
+		DebugLogger.info(str("Failed to save TileSet: ") + " " + str(result))
 
 # Test function to generate and save the tileset
 func _ready():
-	print("=== STARTING ENHANCED TILESET GENERATION ===")
+	DebugLogger.info("=== STARTING ENHANCED TILESET GENERATION ===")
 	var tileset = generate_terrain_tileset()
 	save_tileset_to_file(tileset, "res://assets/enhanced_terrain_tileset.tres")
-	print("=== ENHANCED TILESET GENERATION COMPLETE! ===")
-	print("Enhanced tileset saved to: assets/enhanced_terrain_tileset.tres")
+	DebugLogger.info("=== ENHANCED TILESET GENERATION COMPLETE! ===")
+	DebugLogger.info("Enhanced tileset saved to: assets/enhanced_terrain_tileset.tres")
 	# Auto-quit after generation
 	get_tree().quit()
 
@@ -472,3 +472,4 @@ func _exit_tree():
 	if has_method("generate_terrain_tileset"):
 		# Signal that we're done with this script
 		pass
+

@@ -1,12 +1,12 @@
 extends SceneTree
 
 func _initialize():
-	print("Starting monster sprite generation...")
+	DebugLogger.info("Starting monster sprite generation...")
 	
 	# Load Main script to access monster creation functions
 	var main_script = load("res://scripts/Main.gd")
 	if not main_script:
-		print("ERROR: Could not load Main.gd script")
+		DebugLogger.error("ERROR: Could not load Main.gd script")
 		quit()
 		return
 	
@@ -49,12 +49,13 @@ func _initialize():
 			# Save the image
 			var error = image.save_png(file_path)
 			if error == OK:
-				print("Generated sprite: ", file_path)
+				DebugLogger.info(str("Generated sprite: ") + " " + str(file_path))
 				generated_count += 1
 			else:
-				print("ERROR: Failed to save ", file_path, " - Error code: ", error)
+				DebugLogger.error(str("ERROR: Failed to save ") + " " + str(file_path) + " " + str(" - Error code: ") + " " + str(error))
 		else:
-			print("ERROR: Failed to create texture for ", monster_name)
+			DebugLogger.error(str("ERROR: Failed to create texture for ") + " " + str(monster_name))
 	
-	print("Monster sprite generation complete! Generated ", generated_count, " sprites.")
+	DebugLogger.info(str("Monster sprite generation complete! Generated ") + " " + str(generated_count) + " " + str(" sprites."))
 	quit()
+

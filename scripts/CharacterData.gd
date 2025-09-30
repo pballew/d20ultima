@@ -375,7 +375,7 @@ func gain_experience(xp_amount: int) -> bool:
 	var old_level = level
 	experience += xp_amount
 	
-	print("Gained ", xp_amount, " XP! Total: ", experience)
+	DebugLogger.info(str("Gained ") + " " + str(xp_amount) + " " + str(" XP! Total: ") + " " + str(experience))
 	
 	# Check for level-ups
 	while experience >= get_xp_for_next_level() and level < 20:
@@ -389,7 +389,7 @@ func level_up():
 	var old_level = level
 	level += 1
 	
-	print("LEVEL UP! ", character_name, " is now level ", level)
+	DebugLogger.info(str("LEVEL UP! ") + " " + str(character_name) + " " + str(" is now level ") + " " + str(level))
 	
 	# Roll for HP increase based on class hit die
 	var hit_die_roll = roll_class_hit_die()
@@ -400,20 +400,20 @@ func level_up():
 	max_health += hp_gain
 	current_health += hp_gain  # Heal on level-up
 	
-	print("Rolled ", hit_die_roll, " on hit die + ", con_modifier, " CON mod = ", hp_gain, " HP gained!")
-	print("New max HP: ", max_health)
+	DebugLogger.info(str("Rolled ") + " " + str(hit_die_roll) + " " + str(" on hit die + ") + " " + str(con_modifier) + " " + str(" CON mod = ") + " " + str(hp_gain) + " " + str(" HP gained!"))
+	DebugLogger.info(str("New max HP: ") + " " + str(max_health))
 	
 	# Increase attack bonus every few levels (class-dependent)
 	var old_attack_bonus = attack_bonus
 	calculate_attack_bonus()
 	
 	if attack_bonus > old_attack_bonus:
-		print("Attack bonus increased to +", attack_bonus)
+		DebugLogger.info(str("Attack bonus increased to +") + " " + str(attack_bonus))
 	
 	# Recalculate all derived stats
 	calculate_derived_stats()
 	
-	print("Level ", old_level, " -> ", level, " complete!")
+	DebugLogger.info(str("Level ") + " " + str(old_level) + " " + str(" -> ") + " " + str(level) + " " + str(" complete!"))
 
 # Calculate attack bonus based on level and class
 func calculate_attack_bonus():
@@ -458,3 +458,5 @@ func award_xp_for_quest(difficulty_level: int) -> int:
 	var base_xp = difficulty_level * 200
 	gain_experience(base_xp)
 	return base_xp
+
+

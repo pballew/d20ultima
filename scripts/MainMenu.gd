@@ -11,24 +11,24 @@ signal start_game(character_data: CharacterData)
 @onready var sprite_container = $SpriteDisplay/SpriteContainer
 
 func _ready():
-	print("=== MainMenu _ready() Debug ===")
-	print("MainMenu node path: ", get_path())
-	print("MainMenu size: ", size)
-	print("MainMenu position: ", position)
+	DebugLogger.info("=== MainMenu _ready() Debug ===")
+	DebugLogger.info(str("MainMenu node path: ") + " " + str(get_path()))
+	DebugLogger.info(str("MainMenu size: ") + " " + str(size))
+	DebugLogger.info(str("MainMenu position: ") + " " + str(position))
 	
 	# Check if all required nodes exist
 	if not continue_btn:
-		print("ERROR: continue_btn not found!")
+		DebugLogger.error("ERROR: continue_btn not found!")
 	if not new_character_btn:
-		print("ERROR: new_character_btn not found!")
+		DebugLogger.error("ERROR: new_character_btn not found!")
 	if not load_character_btn:
-		print("ERROR: load_character_btn not found!")
+		DebugLogger.error("ERROR: load_character_btn not found!")
 	if not quit_btn:
-		print("ERROR: quit_btn not found!")
+		DebugLogger.error("ERROR: quit_btn not found!")
 	if not character_creation:
-		print("ERROR: character_creation not found!")
+		DebugLogger.error("ERROR: character_creation not found!")
 	if not sprite_container:
-		print("ERROR: sprite_container not found!")
+		DebugLogger.error("ERROR: sprite_container not found!")
 	
 	# Connect signals
 	if continue_btn:
@@ -50,21 +50,21 @@ func _ready():
 	# Force MainMenu to front and ensure proper positioning
 	z_index = 200
 	call_deferred("move_to_front")
-	print("MainMenu moved to front with z_index: ", z_index)
+	DebugLogger.info(str("MainMenu moved to front with z_index: ") + " " + str(z_index))
 	
 	# Show main menu initially
 	show_main_menu()
 
 func show_main_menu():
-	print("=== MainMenu Debug ===")
-	print("MainMenu visible: ", visible)
-	print("MainMenu modulate: ", modulate)
+	DebugLogger.info("=== MainMenu Debug ===")
+	DebugLogger.info(str("MainMenu visible: ") + " " + str(visible))
+	DebugLogger.info(str("MainMenu modulate: ") + " " + str(modulate))
 	
 	# Override the existing background color to be black
 	var background = get_node("Background")
 	if background:
 		background.color = Color.BLACK
-		print("Changed existing background to BLACK")
+		DebugLogger.info("Changed existing background to BLACK")
 	else:
 		# Add a debug background to make the MainMenu visible
 		if not has_node("DebugBackground"):
@@ -74,18 +74,18 @@ func show_main_menu():
 			debug_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 			add_child(debug_bg)
 			move_child(debug_bg, 0)  # Move to back
-			print("Added debug background to MainMenu")
+			DebugLogger.info("Added debug background to MainMenu")
 	
 	$CenterContainer.show()
 	character_creation.hide()
 	
-	print("CenterContainer visible: ", $CenterContainer.visible)
-	print("CenterContainer modulate: ", $CenterContainer.modulate)
+	DebugLogger.info(str("CenterContainer visible: ") + " " + str($CenterContainer.visible))
+	DebugLogger.info(str("CenterContainer modulate: ") + " " + str($CenterContainer.modulate))
 	
 	if title_label:
-		print("Title label visible: ", title_label.visible)
-		print("Title label text: ", title_label.text)
-		print("Title label modulate: ", title_label.modulate)
+		DebugLogger.info(str("Title label visible: ") + " " + str(title_label.visible))
+		DebugLogger.info(str("Title label text: ") + " " + str(title_label.text))
+		DebugLogger.info(str("Title label modulate: ") + " " + str(title_label.modulate))
 		# Stylize the title with a bundled medieval font when available, else SystemFont fallbacks
 		title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -106,7 +106,7 @@ func show_main_menu():
 		]
 		var chosen_font: Font = null
 		for path in bundled_candidates:
-			print("Trying font candidate: ", path)
+			DebugLogger.info(str("Trying font candidate: ") + " " + str(path))
 			# Load directly from bytes to avoid import-time errors in headless checks
 			if FileAccess.file_exists(path):
 				var bytes := FileAccess.get_file_as_bytes(path)
@@ -114,12 +114,12 @@ func show_main_menu():
 					var ff := FontFile.new()
 					ff.data = bytes
 					chosen_font = ff
-					print("Loaded bundled medieval font from bytes: ", path, " (", bytes.size(), " bytes)")
+					DebugLogger.info("Loaded bundled medieval font from bytes: %s (%d bytes)" % [path, bytes.size()])
 					break
 				else:
-					print("Font file read returned 0 bytes: ", path)
+					DebugLogger.info(str("Font file read returned 0 bytes: ") + " " + str(path))
 			else:
-				print("Font candidate not found by FileAccess: ", path)
+				DebugLogger.info(str("Font candidate not found by FileAccess: ") + " " + str(path))
 		if chosen_font == null:
 			# Fallback to system fonts
 			var sys_font := SystemFont.new()
@@ -133,7 +133,7 @@ func show_main_menu():
 				"MedievalSharp"
 			]
 			chosen_font = sys_font
-			print("Using SystemFont fallback; candidates: ", sys_font.font_names)
+			DebugLogger.info("Using SystemFont fallback; candidates: %s" % str(sys_font.font_names))
 			# List available files in res://assets/fonts for diagnostics
 			var fonts_dir_path = "res://assets/fonts"
 			var dir = DirAccess.open(fonts_dir_path)
@@ -146,24 +146,24 @@ func show_main_menu():
 						listed.append(fname)
 					fname = dir.get_next()
 				dir.list_dir_end()
-				print("Fonts present in ", fonts_dir_path, ": ", listed)
+				DebugLogger.info("Fonts present in %s: %s" % [fonts_dir_path, str(listed)])
 		ls.font = chosen_font
 		ls.font_size = 72
 		ls.font_color = Color(0, 1, 1) # aqua
 		ls.outline_size = 4
 		ls.outline_color = Color(0, 0, 0)
 		title_label.label_settings = ls
-		print("Styled title label with medieval font (size=72, aqua, outline=4)")
+		DebugLogger.info("Styled title label with medieval font (size=72, aqua, outline=4)")
 	else:
-		print("ERROR: Title label not found!")
+		DebugLogger.error("ERROR: Title label not found!")
 	
 	# Make buttons more visible
 	if new_character_btn:
 		new_character_btn.modulate = Color.WHITE
-		print("New Character button visible: ", new_character_btn.visible)
+		DebugLogger.info(str("New Character button visible: ") + " " + str(new_character_btn.visible))
 	if quit_btn:
 		quit_btn.modulate = Color.RED
-		print("Quit button visible: ", quit_btn.visible)
+		DebugLogger.info(str("Quit button visible: ") + " " + str(quit_btn.visible))
 	
 	# Update continue button based on save data
 	_update_continue_button()
@@ -171,20 +171,20 @@ func show_main_menu():
 	# Update load character button based on available characters
 	_update_load_character_button()
 	
-	print("=== End MainMenu Debug ===")
+	DebugLogger.info("=== End MainMenu Debug ===")
 
 func _update_continue_button():
 	"""Update the continue button text and visibility based on save data"""
 	var has_data = SaveSystem.has_save_data()
 	var last_character_name = SaveSystem.get_last_character_name() if has_data else ""
-	print("[Continue Button] has_save_data=", has_data, ", last_character_name=", last_character_name)
+	DebugLogger.info(str("[Continue Button] has_save_data=") + " " + str(has_data) + " " + str(", last_character_name=") + " " + str(last_character_name))
 	if has_data and last_character_name != "":
 		continue_btn.text = "Journey Onward (" + last_character_name + ")"
 		continue_btn.visible = true
-		print("[Continue Button] Visible with last character; text=", continue_btn.text)
+		DebugLogger.info(str("[Continue Button] Visible with last character; text=") + " " + str(continue_btn.text))
 	else:
 		continue_btn.visible = false
-		print("[Continue Button] Hidden (no save)")
+		DebugLogger.info("[Continue Button] Hidden (no save)")
 
 func _update_load_character_button():
 	"""Update the load character button based on available saved characters"""
@@ -228,7 +228,7 @@ func _on_continue():
 	if last_character:
 		start_game.emit(last_character)
 	else:
-		print("Failed to load last character!")
+		DebugLogger.info("Failed to load last character!")
 		_update_continue_button()  # Update button state
 		_update_load_character_button()  # Update load button state as well
 
@@ -239,14 +239,14 @@ func _on_new_character():
 func _on_load_character():
 	# Double-check if button should be disabled (safeguard)
 	if load_character_btn.disabled:
-		print("Load character button is disabled - no characters available")
+		DebugLogger.info("Load character button is disabled - no characters available")
 		return
 	
 	# Show available character files
 	var characters_dir = "user://characters/"
 	
 	if not DirAccess.dir_exists_absolute(characters_dir):
-		print("No saved characters found!")
+		DebugLogger.info("No saved characters found!")
 		_update_load_character_button()  # Update button state
 		return
 	
@@ -262,7 +262,7 @@ func _on_load_character():
 			file_name = dir.get_next()
 		
 		if character_files.is_empty():
-			print("No saved characters found!")
+			DebugLogger.info("No saved characters found!")
 			_update_load_character_button()  # Update button state
 			return
 		
@@ -303,7 +303,7 @@ func _load_character_file(path: String, dialog: AcceptDialog):
 		dialog.queue_free()
 		_on_character_loaded(character_data)
 	else:
-		print("Failed to load character from: ", path)
+		DebugLogger.info(str("Failed to load character from: ") + " " + str(path))
 
 func _on_character_created(character_data: CharacterData):
 	start_game.emit(character_data)
@@ -313,17 +313,17 @@ func _on_character_loaded(character_data: CharacterData):
 
 func display_all_player_sprites():
 	"""Generate and display all player sprite combinations in a row"""
-	print("Displaying all player sprites on main menu...")
+	DebugLogger.info("Displaying all player sprites on main menu...")
 	
 	# Load PlayerIconFactory
 	var factory_script = load("res://scripts/PlayerIconFactory.gd")
 	if not factory_script:
-		print("Could not load PlayerIconFactory script")
+		DebugLogger.info("Could not load PlayerIconFactory script")
 		return
 	
 	var factory = factory_script.new()
 	if not factory.has_method("generate_icon"):
-		print("Factory missing generate_icon method")
+		DebugLogger.info("Factory missing generate_icon method")
 		return
 	
 	# Get all race and class combinations (limit to reduce memory usage)
@@ -357,7 +357,7 @@ func display_all_player_sprites():
 				sprite_container.add_child(texture_rect)
 				sprite_count += 1
 	
-	print("Displayed ", sprite_count, " player sprites on main menu")
+	DebugLogger.info(str("Displayed ") + " " + str(sprite_count) + " " + str(" player sprites on main menu"))
 	
 	# Clean up factory to prevent memory leaks
 	if factory:
@@ -365,3 +365,5 @@ func display_all_player_sprites():
 
 func _on_quit():
 	get_tree().quit()
+
+

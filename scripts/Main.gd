@@ -49,8 +49,8 @@ func _ready():
 	if player.has_method("set_camera_target"):
 		player.set_camera_target(player.global_position)
 	
-	print("Camera positioned at: ", camera.global_position)
-	print("Player position: ", player.global_position)
+	DebugLogger.info("Camera positioned at: %s" % camera.global_position)
+	DebugLogger.info("Player position: %s" % player.global_position)
 
 	# Initialize coordinate overlay
 	if coordinate_overlay:
@@ -62,7 +62,7 @@ func _ready():
 
 	# CombatUI removed; CombatScreen handles visual overlays now
 
-	print("Game scene ready!")
+	DebugLogger.info("Game scene ready!")
 
 	# Spawn a few visible monsters around the player for debugging/visibility
 	spawn_some_overworld_monsters()
@@ -73,7 +73,7 @@ func _ready():
 func regenerate_map():
 	# Ensure we have references to key nodes
 	if !player or !terrain:
-		print("Error: Missing player or terrain node!")
+		DebugLogger.error("Error: Missing player or terrain node!")
 		return
 		
 	# Store player's current state
@@ -106,12 +106,12 @@ func regenerate_map():
 		add_child(player)
 		var safe_pos = find_nearest_safe_position(current_pos)
 		if safe_pos == Vector2.ZERO and not terrain.is_walkable(current_pos):
-			print("Warning: Safe position fallback to (0,0)")
+			DebugLogger.warn("Warning: Safe position fallback to (0,0)")
 		player.global_position = safe_pos
 		player.current_health = current_health
 		if camera:
 			camera.global_position = player.global_position
-		print("Map regenerated successfully! Player at: ", player.global_position)
+		DebugLogger.info("Map regenerated successfully! Player at: %s" % player.global_position)
 		# Ensure camera target is synced to avoid smoothing lag
 		if player and player.has_method("set_camera_target"):
 			player.set_camera_target(player.global_position)
@@ -144,18 +144,18 @@ func ensure_player_safe_starting_position():
 	var current_pos = player.global_position
 	# If the current (saved) position is already walkable, keep it
 	if terrain.is_walkable(current_pos):
-		print("Player position is walkable; keeping saved position: ", current_pos)
+		DebugLogger.info("Player position is walkable; keeping saved position: %s" % current_pos)
 		return
     
 	# Otherwise, try to find a near safe tile around the current position first
 	var near_safe = find_nearest_safe_position(current_pos)
 	if near_safe != Vector2.ZERO:
 		player.global_position = near_safe
-		print("Player adjusted to nearest safe position: ", player.global_position)
+		DebugLogger.info("Player adjusted to nearest safe position: %s" % player.global_position)
 		return
     
 	# If none found nearby, continue with broader searches below
-	print("Searching broader area for safe starting position...")
+	DebugLogger.info("Searching broader area for safe starting position...")
 	
 	# Try a more systematic search for walkable terrain
 	# First try a grid pattern around the world center
@@ -172,7 +172,7 @@ func ensure_player_safe_starting_position():
 					var test_pos = center_pos + Vector2(x * TILE_SIZE, y * TILE_SIZE)
 					if terrain.is_walkable(test_pos):
 						player.global_position = test_pos  # Already centered
-						print("Player moved to safe starting position: ", player.global_position)
+						DebugLogger.info("Player moved to safe starting position: %s" % player.global_position)
 						return
 	
 	# If still no luck, try a denser pattern around current position
@@ -186,7 +186,7 @@ func ensure_player_safe_starting_position():
 			
 			if terrain.is_walkable(test_pos):
 				player.global_position = test_pos + Vector2(TILE_SIZE/2, TILE_SIZE/2)  # Center on tile
-				print("Player moved to safe starting position: ", player.global_position)
+				DebugLogger.info("Player moved to safe starting position: %s" % player.global_position)
 				return
 	
 	# Last resort: try specific known-good positions
@@ -204,13 +204,13 @@ func ensure_player_safe_starting_position():
 	for fallback_pos in fallback_positions:
 		if terrain.is_walkable(fallback_pos):
 			player.global_position = fallback_pos  # Already centered
-			print("Player moved to fallback safe position: ", player.global_position)
+			DebugLogger.info("Player moved to fallback safe position: %s" % player.global_position)
 			return
 	
-	print("Warning: Could not find safe starting position for player!")
+	DebugLogger.warn("Warning: Could not find safe starting position for player!")
 
 func _on_encounter_started():
-	print("A wild creature appears!")
+	DebugLogger.info("A wild creature appears!")
 	
 	# Get terrain-based encounter difficulty
 	var terrain_type = get_current_terrain_type()
@@ -257,9 +257,9 @@ func create_random_enemy(difficulty_modifier: String = "wilderness") -> Characte
 	
 	monster.global_position = Vector2(600, 300)
 	
-	print(monster_data.monster_name, " (", monster_data.get_type_name(), ") appears!")
+	DebugLogger.info("%s (%s) appears!" % [monster_data.monster_name, monster_data.get_type_name()])
 	if monster_data.special_attacks.size() > 0:
-		print("Special Attacks: ", ", ".join(monster_data.special_attacks))
+		DebugLogger.info(str("Special Attacks: %s" % ", ".join(monster_data.special_attacks)))
 	return monster
 
 func create_random_monster_data(difficulty_modifier: String = "wilderness") -> MonsterData:
@@ -350,7 +350,7 @@ func spawn_some_overworld_monsters():
 		for child in enemy.get_children():
 			if child is Sprite2D:
 				child.z_index = 50
-		print("Spawned overworld monster: ", enemy.name, " at ", enemy.global_position)
+		DebugLogger.info(str("Spawned overworld monster: ") + " " + str(enemy.name) + " " + str(" at ") + " " + str(enemy.global_position))
 
 	# spawn_some_overworld_monsters intentionally does not return data; it only instantiates enemies
 
@@ -373,7 +373,7 @@ func scale_monster_to_player_level(monster_data: MonsterData):
 		# We can't directly modify calculated HP, but we can boost constitution
 		monster_data.constitution += hp_bonus / 4  # Approximate HP boost via CON
 		
-		print("Scaled ", monster_data.monster_name, " to player level ", player.level)
+		DebugLogger.info(str("Scaled ") + " " + str(monster_data.monster_name) + " " + str(" to player level ") + " " + str(player.level))
 
 func create_goblin_data() -> MonsterData:
 	var data = MonsterData.new()
@@ -1204,7 +1204,7 @@ func _on_combat_finished(player_won: bool):
 		# Award XP for victory - base amount varies by enemy type
 		var xp_reward = 25 + randi() % 26  # 25-50 XP for winning
 		player.gain_experience(xp_reward)
-		print("Combat victory! Gained ", xp_reward, " XP")
+		DebugLogger.info(str("Combat victory! Gained ") + " " + str(xp_reward) + " " + str(" XP"))
 	else:
 		# Handle player defeat - respawn with full health
 		respawn_player()
@@ -1215,7 +1215,7 @@ func _on_combat_finished(player_won: bool):
 		enemy.queue_free()
 
 func _on_camping_started():
-	print("Setting up campsite...")
+	DebugLogger.info("Setting up campsite...")
 	show_camping_overlay()
 
 func _on_player_moved():
@@ -1226,13 +1226,13 @@ func _on_player_moved():
 
 func _on_town_name_display(town_name: String):
 	# Disabled - no longer showing large town name text
-	print("DEBUG: _on_town_name_display called with: ", town_name, " (disabled)")
+	DebugLogger.info("DEBUG: _on_town_name_display called with: %s (disabled)" % town_name)
 	return
 	if town_name_label:
 		# Update the text to include "Welcome to" prefix
 		var display_text = "Welcome to " + town_name
 		town_name_label.text = display_text
-		print("DEBUG: Set label text to: ", town_name_label.text)
+		DebugLogger.info(str("DEBUG: Set label text to: ") + " " + str(town_name_label.text))
 		
 		# Wait one frame for the label to update its size, then center it
 		await get_tree().process_frame
@@ -1253,18 +1253,18 @@ func _on_town_name_display(town_name: String):
 		town_name_label.position.x = (viewport_size.x - town_name_label.size.x) / 2  # Center horizontally
 		town_name_label.position.y = viewport_size.y / 3  # Upper third of screen
 		
-		print("DEBUG: Text size: ", text_size)
-		print("DEBUG: Label size: ", town_name_label.size)
-		print("DEBUG: Viewport size: ", viewport_size)
-		print("DEBUG: Label positioned at: ", town_name_label.position)
+		DebugLogger.info(str("DEBUG: Text size: ") + " " + str(text_size))
+		DebugLogger.info(str("DEBUG: Label size: ") + " " + str(town_name_label.size))
+		DebugLogger.info(str("DEBUG: Viewport size: ") + " " + str(viewport_size))
+		DebugLogger.info(str("DEBUG: Label positioned at: ") + " " + str(town_name_label.position))
 		
 		town_name_label.show()
-		print("DEBUG: Label shown, visible: ", town_name_label.visible)
+		DebugLogger.info(str("DEBUG: Label shown, visible: ") + " " + str(town_name_label.visible))
 		
 		# Restart the timer to hide the label after 3 seconds
 		if town_name_timer:
 			town_name_timer.start()
-			print("DEBUG: Timer started")
+			DebugLogger.info("DEBUG: Timer started")
 
 func create_town_name_display():
 	# Create a label to display town names
@@ -1301,15 +1301,15 @@ func create_town_name_display():
 	town_name_label.position = Vector2(100, 100)  # Will be repositioned when shown
 	town_name_label.hide()  # Start hidden
 	
-	print("DEBUG: Created town_name_label with size: ", town_name_label.size)
+	DebugLogger.info(str("DEBUG: Created town_name_label with size: ") + " " + str(town_name_label.size))
 	
 	# Add to UI layer
 	var ui_layer = $UI
 	if ui_layer:
 		ui_layer.add_child(town_name_label)
-		print("DEBUG: Added town_name_label to UI layer")
+		DebugLogger.info("DEBUG: Added town_name_label to UI layer")
 	else:
-		print("ERROR: No UI layer found for town_name_label")
+		DebugLogger.error("ERROR: No UI layer found for town_name_label")
 	
 	# Create timer to hide the label
 	town_name_timer = Timer.new()
@@ -1357,7 +1357,7 @@ func _exit_tree():
 			combat_manager.combat_finished.disconnect(_on_combat_finished)
 
 func respawn_player():
-	print("Player defeated! Respawning at starting location...")
+	DebugLogger.info("Player defeated! Respawning at starting location...")
 	
 	# Reset player health to full using heal method
 	var health_to_restore = player.max_health - player.current_health
@@ -1375,9 +1375,9 @@ func respawn_player():
 	# Show respawn message to player
 	var respawn_msgs = ["=== RESPAWN ===", "You have been defeated!", "Respawning at starting location with full health.", "==============="]
 	for msg in respawn_msgs:
-		print("[COMBAT] ", msg)
+		DebugLogger.info(str("[COMBAT] ") + " " + str(msg))
 	
-	print("Player respawned with full health at: ", starting_position)
+	DebugLogger.info(str("Player respawned with full health at: ") + " " + str(starting_position))
 
 func show_camping_overlay():
 	# Create camping overlay
@@ -1460,7 +1460,7 @@ func _toggle_test_screen():
 
 	if existing:
 		existing.queue_free()
-		print("TestScreen closed")
+		DebugLogger.info("TestScreen closed")
 		return
 
 	# Instance and add TestScreen
@@ -1468,16 +1468,16 @@ func _toggle_test_screen():
 	ts.set_meta("is_test_screen", true)
 	parent.add_child(ts)
 	ts.owner = self
-	print("TestScreen opened")
+	DebugLogger.info("TestScreen opened")
 
 func find_nearby_towns():
 	if !terrain or !player:
-		print("Error: Missing terrain or player reference!")
+		DebugLogger.info("Error: Missing terrain or player reference!")
 		return
 	
-	print("=== NEARBY TOWNS ===")
+	DebugLogger.info("=== NEARBY TOWNS ===")
 	var player_tile_pos = Vector2i(int(player.global_position.x / TILE_SIZE), int(player.global_position.y / TILE_SIZE))
-	print("Player position: Tile (", player_tile_pos.x, ", ", player_tile_pos.y, ") - World (", player.global_position.x, ", ", player.global_position.y, ")")
+	DebugLogger.info("Player position: Tile (%d, %d) - World (%.1f, %.1f)" % [player_tile_pos.x, player_tile_pos.y, player.global_position.x, player.global_position.y])
 	
 	var towns_found = []
 	
@@ -1485,7 +1485,7 @@ func find_nearby_towns():
 	if terrain.has_method("get_all_towns"):
 		towns_found = terrain.get_all_towns()
 	else:
-		print("Terrain doesn't have get_all_towns method - searching manually...")
+		DebugLogger.info("Terrain doesn't have get_all_towns method - searching manually...")
 		# Manual search through sections
 		for section_id in terrain.map_sections.keys():
 			var section = terrain.map_sections[section_id]
@@ -1501,23 +1501,23 @@ func find_nearby_towns():
 				})
 	
 	if towns_found.size() == 0:
-		print("No towns found!")
+		DebugLogger.info("No towns found!")
 		return
 	
 	# Sort towns by distance
 	towns_found.sort_custom(func(a, b): return a.distance < b.distance)
 	
-	print("Found ", towns_found.size(), " towns:")
+	DebugLogger.info("Found %d towns:" % towns_found.size())
 	for i in range(min(5, towns_found.size())):  # Show closest 5 towns
 		var town = towns_found[i]
-		print("  ", i + 1, ". ", town.name, " - Tile (", town.world_pos.x, ", ", town.world_pos.y, ") - Distance: ", "%.1f" % town.distance, " tiles")
+		DebugLogger.info("%d. %s - Tile (%d, %d) - Distance: %.1f tiles" % [i + 1, str(town.name), int(town.world_pos.x), int(town.world_pos.y), float(town.distance)])
 		if i == 0:
-			print("     ^^ CLOSEST TOWN ^^")
+			DebugLogger.info("     ^^ CLOSEST TOWN ^^")
 	
-	print("Press T again to refresh town list")
-	print("===================")
+	DebugLogger.info("Press T again to refresh town list")
+	DebugLogger.info("===================")
 	
-	print("Camping overlay closed")
+	DebugLogger.info("Camping overlay closed")
 
 func create_campsite_texture() -> ImageTexture:
 	# Create a 600x400 campsite scene
@@ -1642,3 +1642,5 @@ func draw_tree(image: Image, pos: Vector2i):
 			var dist = Vector2(x - pos.x, y - pos.y).length()
 			if dist <= foliage_radius and x >= 0 and x < 600 and y >= 0 and y < 400:
 				image.set_pixel(x, y, leaf_color)
+
+

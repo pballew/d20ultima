@@ -11,12 +11,12 @@ const terrain_colors_resource = preload("res://scripts/TerrainColors.gd")
 const TERRAIN_COLORS = terrain_colors_resource.TERRAIN_COLORS
 
 func _init():
-	print("=== ENHANCED TILESET GENERATOR ===")
+	DebugLogger.info("=== ENHANCED TILESET GENERATOR ===")
 	generate_enhanced_tileset()
 	quit()
 
 func generate_enhanced_tileset():
-	print("Creating enhanced terrain tileset...")
+	DebugLogger.info("Creating enhanced terrain tileset...")
 	
 	# Calculate atlas dimensions
 	var atlas_cols = 8
@@ -39,8 +39,8 @@ func generate_enhanced_tileset():
 	# Save the texture
 	var texture_path = "res://assets/enhanced_terrain_atlas.png"
 	image.save_png(texture_path)
-	print("Saved enhanced terrain atlas: ", texture_path)
-	print("=== GENERATION COMPLETE ===")
+	DebugLogger.info(str("Saved enhanced terrain atlas: ") + " " + str(texture_path))
+	DebugLogger.info("=== GENERATION COMPLETE ===")
 
 func create_terrain_pattern(image: Image, rect: Rect2i, terrain_type: int, base_color: Color):
 	# Enhanced patterns for each terrain type
@@ -134,3 +134,4 @@ func create_default_pattern(image: Image, rect: Rect2i, base_color: Color):
 				image.set_pixel(x, y, base_color)
 			else:
 				image.set_pixel(x, y, base_color.darkened(0.2))
+

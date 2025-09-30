@@ -124,7 +124,7 @@ func perform_monster_attack(monster: Monster, target: Character):
 		size_modifier = monster.monster_data.get_size_modifier()
 	var total_attack = attack_roll + monster.monster_data.base_attack_bonus + str_modifier + size_modifier
 	
-	print("Attack roll: ", attack_roll, " + ", monster.monster_data.base_attack_bonus, " (BAB) + ", str_modifier, " (Str) + ", size_modifier, " (size) = ", total_attack, " vs AC ", target.armor_class)
+	DebugLogger.log("Attack roll: %s + %s (BAB) + %s (Str) + %s (size) = %s vs AC %s" % [attack_roll, monster.monster_data.base_attack_bonus, str_modifier, size_modifier, total_attack, target.armor_class])
 	
 	if total_attack >= target.armor_class:
 		var damage = monster.roll_dice(monster.damage_dice) + str_modifier
@@ -285,5 +285,5 @@ func player_retreat():
 func end_combat(player_won: bool):
 	is_combat_active = false
 	combat_participants.clear()
-	print("Combat ended! Player ", "won" if player_won else "lost")
+	DebugLogger.info("Combat ended! Player %s" % ("won" if player_won else "lost"))
 	combat_finished.emit(player_won)

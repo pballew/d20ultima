@@ -83,10 +83,10 @@ func _unhandled_input(event):
         match event.keycode:
             KEY_F8:
                 enabled = not enabled
-                print("FogOfWar enabled:", enabled)
+                DebugLogger.info(str("FogOfWar enabled:") + " " + str(enabled))
                 queue_redraw()
             KEY_F7:
-                print("FogOfWar: clearing explored tiles")
+                DebugLogger.info("FogOfWar: clearing explored tiles")
                 clear_all()
 
 func _draw():
@@ -150,3 +150,5 @@ func debug_stats() -> Dictionary:
         "enabled": enabled,
         "radius": reveal_radius_tiles
     }
+
+

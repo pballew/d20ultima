@@ -1,11 +1,9 @@
 [gd_scene load_steps=2 format=3 uid="uid://b8teufa3s7wvi"]
 
-[ext_resource type="Script" path="res://scripts/MapDataDebugUI.gd" id="1_x2j3n"]
-
 [node name="MapDataDebugUI" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 mouse_filter = 2
-script = ExtResource("1_x2j3n")
+; Script reference removed - file not present in repo

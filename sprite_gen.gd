@@ -1,7 +1,7 @@
 extends SceneTree
 
 func _initialize():
-	print("Starting sprite generation...")
+	DebugLogger.info("Starting sprite generation...")
 	
 	# Load and create the factory
 	var factory_script = load("res://scripts/PlayerIconFactory.gd")
@@ -9,11 +9,11 @@ func _initialize():
 		var factory = factory_script.new()
 		if factory.has_method("export_all_player_sprites"):
 			var count = factory.export_all_player_sprites()
-			print("Generated ", count, " sprite files!")
+			DebugLogger.info("Generated %s sprite files!" % count)
 		else:
-			print("Factory missing export method")
+			DebugLogger.warn("Factory missing export method")
 	else:
-		print("Could not load PlayerIconFactory script")
+		DebugLogger.error("Could not load PlayerIconFactory script")
 	
 	# Exit after generation
 	quit()

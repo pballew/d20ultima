@@ -17,7 +17,7 @@ config/features=PackedStringArray("4.4", "Forward Plus")
 config/icon="res://icon.svg"
 
 [autoload]
-
+DebugLogger="*res://scripts/DebugLogger.gd"
 SaveSystem="*res://scripts/SaveSystem.gd"
 
 [display]

@@ -24,21 +24,21 @@ func save_game_state(character_data: CharacterData):
 	if file:
 		file.store_string(JSON.stringify(game_state))
 		file.close()
-		print("Game state saved successfully!")
+		DebugLogger.info("Game state saved successfully!")
 		return char_save_result == OK
 	else:
-		print("Failed to save game state!")
+		DebugLogger.error("Failed to save game state!")
 		return false
 
 func load_last_character() -> CharacterData:
 	"""Load the last played character, returns null if none found"""
 	if not FileAccess.file_exists(SAVE_PATH):
-		print("No previous game state found")
+		DebugLogger.warn("No previous game state found")
 		return null
 	
 	var file = FileAccess.open(SAVE_PATH, FileAccess.READ)
 	if not file:
-		print("Failed to open game state file")
+		DebugLogger.error("Failed to open game state file")
 		return null
 	
 	var json_string = file.get_as_text()
@@ -47,25 +47,25 @@ func load_last_character() -> CharacterData:
 	var json = JSON.new()
 	var parse_result = json.parse(json_string)
 	if parse_result != OK:
-		print("Failed to parse game state JSON")
+		DebugLogger.error("Failed to parse game state JSON")
 		return null
 	
 	var game_state = json.data
 	if not game_state.has("last_character_file"):
-		print("Invalid game state format")
+		DebugLogger.error("Invalid game state format")
 		return null
 	
 	var character_file = game_state["last_character_file"]
 	if not FileAccess.file_exists(character_file):
-		print("Last character file not found: ", character_file)
+		DebugLogger.warn("Last character file not found: %s" % character_file)
 		return null
 	
 	var character_data = load(character_file) as CharacterData
 	if character_data:
-		print("Loaded last character: ", character_data.character_name)
+		DebugLogger.info("Loaded last character: %s" % character_data.character_name)
 		return character_data
 	else:
-		print("Failed to load character data from: ", character_file)
+		DebugLogger.error("Failed to load character data from: %s" % character_file)
 		return null
 
 func has_save_data() -> bool:
@@ -94,7 +94,7 @@ func get_last_character_name() -> String:
 
 func delete_all_characters():
 	"""Delete all saved character data and game state"""
-	print("Deleting all saved characters...")
+	DebugLogger.info("Deleting all saved characters...")
 	
 	var characters_deleted = 0
 	
@@ -106,7 +106,7 @@ func delete_all_characters():
 			var file_name = dir.get_next()
 			while file_name != "":
 				if file_name.ends_with(".tres"):
-					print("Deleting character file: ", file_name)
+					DebugLogger.info("Deleting character file: %s" % file_name)
 					dir.remove(file_name)
 					characters_deleted += 1
 				file_name = dir.get_next()
@@ -119,10 +119,10 @@ func delete_all_characters():
 	
 	# Delete main save file
 	if FileAccess.file_exists(SAVE_PATH):
-		print("Deleting main save file: ", SAVE_PATH)
+		DebugLogger.info("Deleting main save file: %s" % SAVE_PATH)
 		var dir = DirAccess.open("user://")
 		if dir:
 			dir.remove("game_save.dat")
 	
-	print("Deleted ", characters_deleted, " character files and main save data")
+	DebugLogger.info("Deleted %d character files and main save data" % characters_deleted)
 	return characters_deleted
