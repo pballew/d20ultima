@@ -78,9 +78,7 @@ func get_scaled_texture(category: String, name: String, target_size: Vector2) ->
 
     # Duplicate to avoid mutating cached Image inside texture
     img = img.duplicate()
-    img.lock()
     img.resize(int(target_size.x), int(target_size.y), Image.INTERPOLATE_LANCZOS)
-    img.unlock()
 
     var scaled: ImageTexture = ImageTexture.create_from_image(img)
     _cache[key] = scaled
@@ -115,7 +113,6 @@ func render_to_sprite(sprite_node: Sprite2D = null, category: String = "other", 
 func _create_placeholder() -> Texture2D:
     var img := Image.new()
     img.create(8, 8, false, Image.FORMAT_RGBA8)
-    img.lock()
     # checkerboard magenta/black to make missing sprites obvious
     for y in range(img.get_height()):
         for x in range(img.get_width()):

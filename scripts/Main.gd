@@ -4,9 +4,7 @@ const TILE_SIZE = 32  # Match this with EnhancedTerrain.TILE_SIZE
 
 @onready var player = $Player
 @onready var combat_manager = $CombatManager
-var combat_ui = null
-@onready var combat_screen_scene = preload("res://scenes/CombatScreen.tscn")
-var combat_screen = null
+# CombatScreen has been removed; no preload/instance kept here
 @onready var player_stats_ui = $UI/PlayerStatsUI
 @onready var coordinate_overlay = $UI/CoordinateOverlay
 @onready var terrain = $EnhancedTerrainTileMap
@@ -16,6 +14,7 @@ var starting_position: Vector2  # Store player's starting position for respawn
 var debug_ui_scene = preload("res://scenes/MapDataDebugUI.tscn")
 var town_name_label: Label  # Town name display label
 var town_name_timer: Timer  # Timer to hide town name after a few seconds
+var test_screen_scene = preload("res://scenes/TestScreen.tscn")
 
 func _ready():
 	# Add to group for easy finding
@@ -44,11 +43,7 @@ func _ready():
 	# var debug_ui = debug_ui_scene.instantiate()
 	# add_child(debug_ui)
 
-	# Instantiate CombatScreen under UI so it overlays properly
-	var ui_layer = get_node_or_null("UI")
-	if ui_layer and combat_screen_scene:
-		combat_screen = combat_screen_scene.instantiate()
-		ui_layer.add_child(combat_screen)
+	# CombatScreen removed — no overlay scene instantiated here
 	
 	# Set player camera target to prevent bounds constraints
 	if player.has_method("set_camera_target"):
@@ -65,14 +60,15 @@ func _ready():
 	# Create town name display label
 	create_town_name_display()
 
-	# Setup combat UI if present (CombatUI scene may have had UI elements removed)
-	if combat_ui and combat_ui.has_method("setup_combat_ui"):
-		combat_ui.setup_combat_ui(player, combat_manager)
+	# CombatUI removed; CombatScreen handles visual overlays now
 
 	print("Game scene ready!")
 
 	# Spawn a few visible monsters around the player for debugging/visibility
 	spawn_some_overworld_monsters()
+
+	# Ensure this node receives input events
+	set_process_input(true)
 
 func regenerate_map():
 	# Ensure we have references to key nodes
@@ -225,10 +221,8 @@ func _on_encounter_started():
 	# Enter combat mode - disable player movement
 	player.enter_combat()
 	
-	# Start combat
+	# Start combat; CombatScreen/CombatManager handle displaying combat visuals
 	combat_manager.start_combat(player, [enemy])
-	if combat_ui and combat_ui.has_method("show_combat"):
-		combat_ui.show_combat([enemy])
 	
 	# Connect to combat end to award XP
 	if not combat_manager.combat_finished.is_connected(_on_combat_finished):
@@ -1381,10 +1375,7 @@ func respawn_player():
 	# Show respawn message to player
 	var respawn_msgs = ["=== RESPAWN ===", "You have been defeated!", "Respawning at starting location with full health.", "==============="]
 	for msg in respawn_msgs:
-		if combat_ui and combat_ui.has_method("add_combat_log"):
-			combat_ui.add_combat_log(msg)
-		else:
-			print("[COMBAT] ", msg)
+		print("[COMBAT] ", msg)
 	
 	print("Player respawned with full health at: ", starting_position)
 
@@ -1437,33 +1428,10 @@ func _input(event):
 		_close_camping_overlay()
 		return
 
-	# Global toggle for combat screen (F6)
+	# Toggle TestScreen with F6
 	if event is InputEventKey and event.pressed and event.keycode == KEY_F6:
-		if combat_screen:
-			# Be defensive: combat_screen may be a plain Control if its script failed to load earlier.
-			if combat_screen.has_method("toggle"):
-				combat_screen.toggle()
-				# If the screen is now visible, ask it to populate all monster sprites for debugging
-				if combat_screen.visible and combat_screen.has_method("show_all_monsters"):
-					combat_screen.show_all_monsters()
-				return
-			else:
-				print("Main: combat_screen instance missing 'toggle' method (type=", combat_screen.get_class(), "). Re-instantiating scene.")
-				# Attempt to recover by re-instantiating the scene and replacing the node
-				var parent = combat_screen.get_parent()
-				combat_screen.queue_free()
-				if combat_screen_scene:
-					combat_screen = combat_screen_scene.instantiate()
-					if parent:
-						parent.add_child(combat_screen)
-					else:
-						var ui_layer = get_node_or_null("UI")
-						if ui_layer:
-							ui_layer.add_child(combat_screen)
-					# Try toggling again if available
-					if combat_screen and combat_screen.has_method("toggle"):
-						combat_screen.toggle()
-						return
+		_toggle_test_screen()
+		return
 		
 	# Handle map regeneration with PageDown key
 	if event.is_action_pressed("ui_page_down"):
@@ -1480,6 +1448,27 @@ func _close_camping_overlay():
 	var camping_overlays = get_children().filter(func(child): return child.has_meta("is_camping_overlay"))
 	for overlay in camping_overlays:
 		overlay.queue_free()
+
+func _toggle_test_screen():
+	# Look for existing TestScreen instance under UI or root
+	var parent = get_node_or_null("UI") if has_node("UI") else self
+	var existing = null
+	for child in parent.get_children():
+		if child.has_meta("is_test_screen") and child.get_meta("is_test_screen") == true:
+			existing = child
+			break
+
+	if existing:
+		existing.queue_free()
+		print("TestScreen closed")
+		return
+
+	# Instance and add TestScreen
+	var ts = test_screen_scene.instantiate()
+	ts.set_meta("is_test_screen", true)
+	parent.add_child(ts)
+	ts.owner = self
+	print("TestScreen opened")
 
 func find_nearby_towns():
 	if !terrain or !player:

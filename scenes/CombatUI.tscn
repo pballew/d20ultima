@@ -1,8 +1,0 @@
-[gd_scene load_steps=1 format=3]
-
-[node name="CombatUI" type="Control"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 1.0
-anchor_bottom = 1.0
