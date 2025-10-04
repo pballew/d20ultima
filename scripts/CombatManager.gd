@@ -1,6 +1,10 @@
 class_name CombatManager
 extends Node
 
+const Character = preload("res://scripts/Character.gd")
+const Player = preload("res://scripts/Player.gd")
+const Monster = preload("res://scripts/Monster.gd")
+
 signal combat_finished(player_won: bool)
 signal turn_changed(current_character: Character)
 signal combat_message(message: String)

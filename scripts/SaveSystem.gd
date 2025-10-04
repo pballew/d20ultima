@@ -2,6 +2,7 @@ extends Node
 
 const SAVE_PATH = "user://game_save.dat"
 const CHARACTERS_PATH = "user://characters/"
+const CharacterData = preload("res://scripts/CharacterData.gd")
 
 func save_game_state(character_data: CharacterData):
 	"""Save the current character data and mark them as the last played character"""

@@ -1,6 +1,9 @@
 class_name Monster
 extends Character
 
+const Character = preload("res://scripts/Character.gd")
+const MonsterData = preload("res://scripts/MonsterData.gd")
+
 var monster_data: MonsterData
 var attacks_per_turn: int = 1
 var special_attack_uses: Dictionary = {}

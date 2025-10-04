@@ -1,6 +1,8 @@
 class_name Player
 extends Character
 
+const CharacterData = preload("res://scripts/CharacterData.gd")
+
 @export var movement_speed: float = 200.0
 @export var encounters_enabled: bool = false  # Random encounters enabled (default OFF)
 @export var camera_smooth_speed: float = 8.0  # Higher = snappier, lower = slower (increased for better responsiveness)

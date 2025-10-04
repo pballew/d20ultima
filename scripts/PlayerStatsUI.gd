@@ -1,5 +1,7 @@
 extends Control
 
+const Character = preload("res://scripts/Character.gd")
+
 @onready var toggle_button = $VBoxContainer/ToggleButton
 @onready var name_label = $VBoxContainer/NameLabel
 @onready var level_label = $VBoxContainer/LevelLabel

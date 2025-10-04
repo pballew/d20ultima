@@ -4,6 +4,8 @@ extends Control
 @onready var game_scene = $GameScene
 @onready var town_dialog = $TownDialog
 
+const CharacterData = preload("res://scripts/CharacterData.gd")
+
 var current_character: CharacterData
 var quit_confirmation_dialog: AcceptDialog
 ## Controls whether pressing Q in-game saves and returns to menu (true) or saves and quits (false)

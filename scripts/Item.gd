@@ -1,6 +1,8 @@
 class_name Item
 extends Resource
 
+const Character = preload("res://scripts/Character.gd")
+
 enum ItemType { WEAPON, ARMOR, CONSUMABLE, MISC }
 
 @export var item_name: String = ""

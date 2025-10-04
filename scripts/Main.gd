@@ -16,6 +16,11 @@ var town_name_label: Label  # Town name display label
 var town_name_timer: Timer  # Timer to hide town name after a few seconds
 var test_screen_scene = preload("res://scenes/TestScreen.tscn")
 
+const Character = preload("res://scripts/Character.gd")
+const Monster = preload("res://scripts/Monster.gd")
+const MonsterData = preload("res://scripts/MonsterData.gd")
+const Player = preload("res://scripts/Player.gd")
+
 func _ready():
 	# Add to group for easy finding
 	add_to_group("main")

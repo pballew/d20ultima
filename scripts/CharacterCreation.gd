@@ -2,6 +2,7 @@ extends Control
 
 signal character_created(character_data: CharacterData)
 signal character_loaded(character_data: CharacterData)
+const CharacterData = preload("res://scripts/CharacterData.gd")
 
 @onready var name_input = $VBoxContainer/NameContainer/NameLineEdit
 @onready var class_option = $VBoxContainer/ClassContainer/ClassOptionButton
