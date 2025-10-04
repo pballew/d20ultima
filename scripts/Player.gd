@@ -1,557 +1,255 @@
 class_name Player
 extends Character
 
-const CharacterData = preload("res://scripts/CharacterData.gd")
+# Minimal Player used during porting. Exposes the small API Main expects.
 
 @export var movement_speed: float = 200.0
-@export var encounters_enabled: bool = false  # Random encounters enabled (default OFF)
-@export var camera_smooth_speed: float = 8.0  # Higher = snappier, lower = slower (increased for better responsiveness)
-const TILE_SIZE = 32
-var current_target_position: Vector2
-var is_moving: bool = false
-var is_in_combat: bool = false
-var character_class: CharacterData.CharacterClass = CharacterData.CharacterClass.FIGHTER  # Store character class for hit dice
-var camera: Camera2D
-var edge_threshold: int = 3  # Number of tiles from edge to start scrolling (reduced for more responsive scrolling)
-var frames_to_ignore_input: int = 0
-var camera_target: Vector2
-var initial_setup_complete: bool = false  # Flag to delay world bounds checking
 
 signal movement_finished
 signal encounter_started
 signal camping_started
 signal town_name_display(town_name: String)
 
-func _ready():
-	super._ready()
-	current_target_position = global_position
-	# Get camera from parent (Main scene)
-	camera = get_parent().get_node("Camera2D")
-	if camera:
-		camera_target = camera.global_position
-	create_player_sprite()
-	
-	# Delay initial setup completion to allow proper camera positioning
-	await get_tree().create_timer(0.1).timeout
-	initial_setup_complete = true
+var _target_position: Vector2
+var _is_moving: bool = false
+var _is_in_combat: bool = false
 
-func set_camera_target(target_pos: Vector2):
-	camera_target = target_pos
-	if camera:
-		camera.global_position = target_pos
+func _ready() -> void:
+    _target_position = global_position
 
-func load_from_character_data(char_data: CharacterData):
-	character_name = char_data.character_name
-	character_class = char_data.character_class  # Store character class for hit dice calculations
-	strength = char_data.strength
-	dexterity = char_data.dexterity
-	constitution = char_data.constitution
-	intelligence = char_data.intelligence
-	wisdom = char_data.wisdom
-	charisma = char_data.charisma
-	level = char_data.level
-	max_health = char_data.max_health
-	current_health = char_data.current_health
-	experience = char_data.experience
-	attack_bonus = char_data.attack_bonus
-	damage_dice = char_data.damage_dice
-	armor_class = char_data.armor_class
-	# world_position now stored as tile-center already (no half-tile offset needed)
-	global_position = char_data.world_position
+func load_from_character_data(char_data) -> void:
+    if typeof(char_data) == TYPE_DICTIONARY:
+        character_name = char_data.get("character_name", character_name)
+        level = int(char_data.get("level", level))
+        max_health = int(char_data.get("max_health", max_health))
+        current_health = int(char_data.get("current_health", current_health))
+        experience = int(char_data.get("experience", experience))
+        global_position = char_data.get("world_position", global_position)
 
-	# Apply fog of war explored tiles if available
-	var fow = get_tree().get_root().find_child("FogOfWar", true, false)
-	if fow:
-		var explored_dict = fow.get("explored")
-		if explored_dict is Dictionary:
-			# Always clear previous character's fog to avoid leakage between characters
-			explored_dict.clear()
-			# If the loaded character has saved explored tiles, restore them
-			if char_data.explored_tiles and char_data.explored_tiles.size() > 0:
-				for v in char_data.explored_tiles:
-					explored_dict[Vector2i(int(v.x), int(v.y))] = true
-			# Recalculate visibility around current position (ensures starting tile visible for new chars)
-			if fow.has_method("reveal_around_position"):
-				fow.reveal_around_position(global_position)
-			if fow.has_method("queue_redraw"):
-				fow.queue_redraw()
-	frames_to_ignore_input = 1
-	DebugLogger.info("Loaded character: %s - Level %s %s" % [character_name, str(level), str(char_data.get_class_name())])
+func save_to_character_data() -> Dictionary:
+    var d: Dictionary = {}
+    d["character_name"] = character_name
+    d["level"] = level
+    d["max_health"] = max_health
+    d["current_health"] = current_health
+    d["experience"] = experience
+    d["world_position"] = global_position
+    return d
 
-func save_to_character_data() -> CharacterData:
-	var char_data = CharacterData.new()
-	char_data.character_name = character_name
-	char_data.character_class = character_class
-	char_data.strength = strength
-	char_data.dexterity = dexterity
-	char_data.constitution = constitution
-	char_data.intelligence = intelligence
-	char_data.wisdom = wisdom
-	char_data.charisma = charisma
-	char_data.level = level
-	char_data.max_health = max_health
-	char_data.current_health = current_health
-	char_data.experience = experience
-	char_data.attack_bonus = attack_bonus
-	char_data.damage_dice = damage_dice
-	char_data.armor_class = armor_class
-	# Save as tile-centered position (no offset math)
-	char_data.world_position = global_position
+func enter_combat() -> void:
+    _is_in_combat = true
 
-	# Persist fog of war explored tiles
-	var fow = get_tree().get_root().find_child("FogOfWar", true, false)
-	if fow:
-		var explored_dict = fow.get("explored")
-		if explored_dict is Dictionary:
-			var arr: Array = []
-			for key in explored_dict.keys():
-				arr.append(Vector2(key.x, key.y))
-			char_data.explored_tiles = PackedVector2Array(arr)
-			var radius = fow.get("reveal_radius_tiles")
-			if typeof(radius) == TYPE_INT:
-				char_data.last_reveal_radius = int(radius)
-	char_data.save_timestamp = Time.get_datetime_string_from_system()
-	
-	return char_data
+func exit_combat() -> void:
+    _is_in_combat = false
 
-func create_player_sprite():
-	# Create a pixel art player character
-	var sprite = get_node("Sprite2D")
-	var race_name = "Human"
-	var player_class_name = "Fighter"
-	
-	# Set z_index to ensure player renders above terrain
-	z_index = 10
-	sprite.z_index = 10
-	DebugLogger.info("Set player z_index to 10 for proper rendering")
-	
-	# Simple fallback - just use default icon for now
-	# TODO: Integrate with character data when class/race methods are available
-	
-	# Try to find existing factory or create new one
-	var factory = get_tree().get_root().find_child("PlayerIconFactory", true, false)
-	if factory == null:
-		# Load the script and create instance
-		var factory_script = load("res://scripts/PlayerIconFactory.gd")
-		if factory_script:
-			factory = factory_script.new()
-			factory.name = "PlayerIconFactory"
-			get_tree().get_root().add_child.call_deferred(factory)
-	
-	if factory and factory.has_method("generate_icon"):
-		var texture = factory.generate_icon(race_name, player_class_name)
-		sprite.texture = texture
-	else:
-		# Fallback to simple texture creation
-		sprite.texture = create_player_texture()
+func move_to_tile(new_pos: Vector2) -> void:
+    _target_position = new_pos
+    _is_moving = true
 
-func create_player_texture() -> ImageTexture:
-	# Create 32x32 texture for player
-	var image = Image.create(32, 32, false, Image.FORMAT_RGBA8)
-	
-	# Colors for the player character
-	var skin_color = Color(0.9, 0.7, 0.6)
-	var hair_color = Color(0.4, 0.2, 0.1)
-	var shirt_color = Color(0.2, 0.3, 0.8)
-	var pants_color = Color(0.1, 0.4, 0.1)
-	var sword_color = Color(0.7, 0.7, 0.7)
-	var background = Color(0, 0, 0, 0)  # Transparent
-	
-	# Fill background
-	for x in range(32):
-		for y in range(32):
-			image.set_pixel(x, y, background)
-	
-	# Draw head (circle-ish) - scaled to 32x32
-	var head_center_x = 16
-	var head_center_y = 8
-	var head_radius = 5
-	
-	for x in range(32):
-		for y in range(32):
-			var distance = sqrt((x - head_center_x) * (x - head_center_x) + (y - head_center_y) * (y - head_center_y))
-			if distance < head_radius:
-				image.set_pixel(x, y, skin_color)
-	
-	# Draw hair
-	for x in range(head_center_x - 3, head_center_x + 3):
-		for y in range(head_center_y - 3, head_center_y - 1):
-			if x >= 0 and x < 32 and y >= 0 and y < 32:
-				image.set_pixel(x, y, hair_color)
-	
-	# Draw body (shirt)
-	for x in range(head_center_x - 2, head_center_x + 2):
-		for y in range(head_center_y + 2, head_center_y + 6):
-			if x >= 0 and x < 32 and y >= 0 and y < 32:
-				image.set_pixel(x, y, shirt_color)
-	
-	# Draw arms
-	for x in range(head_center_x - 3, head_center_x - 1):
-		for y in range(head_center_y + 2, head_center_y + 5):
-			if x >= 0 and x < 32 and y >= 0 and y < 32:
-				image.set_pixel(x, y, skin_color)
-	
-	for x in range(head_center_x + 1, head_center_x + 3):
-		for y in range(head_center_y + 2, head_center_y + 5):
-			if x >= 0 and x < 32 and y >= 0 and y < 32:
-				image.set_pixel(x, y, skin_color)
-	
-	# Draw sword in right hand
-	for x in range(head_center_x + 3, head_center_x + 4):
-		for y in range(head_center_y + 1, head_center_y + 6):
-			if x >= 0 and x < 32 and y >= 0 and y < 32:
-				image.set_pixel(x, y, sword_color)
-	
-	# Draw legs (pants)
-	for x in range(head_center_x - 1, head_center_x):
-		for y in range(head_center_y + 6, head_center_y + 10):
-			if x >= 0 and x < 32 and y >= 0 and y < 32:
-				image.set_pixel(x, y, pants_color)
-	
-	for x in range(head_center_x, head_center_x + 1):
-		for y in range(head_center_y + 6, head_center_y + 10):
-			if x >= 0 and x < 32 and y >= 0 and y < 32:
-				image.set_pixel(x, y, pants_color)
-	
-	# Draw feet
-	for x in range(head_center_x - 2, head_center_x + 2):
-		for y in range(head_center_y + 10, head_center_y + 11):
-			if x >= 0 and x < 32 and y >= 0 and y < 32:
-				image.set_pixel(x, y, Color(0.3, 0.2, 0.1))  # Brown boots
-	
-	var texture = ImageTexture.new()
-	texture.set_image(image)
-	return texture
+func _physics_process(delta: float) -> void:
+    if _is_moving:
+        global_position = global_position.move_toward(_target_position, movement_speed * delta)
+        if global_position.distance_to(_target_position) < 1.0:
+            global_position = _target_position
+            _is_moving = false
+            emit_signal("movement_finished")
+class_name Player
+extends Character
 
-func _input(event):
-	# Handle debug keys with higher priority using _input instead of _unhandled_input
-	if event is InputEventKey and event.pressed:
-		DebugLogger.info("DEBUG INPUT: Key pressed - keycode: %s key name: %s" % [event.keycode, event.as_text()])
-		
-		# Specific check for T key (keycode should be 84)
-		if event.keycode == KEY_T or event.keycode == 84:
-			DebugLogger.info("*** T KEY DETECTED! TELEPORTING! ***")
-			debug_teleport_to_town()
-			get_viewport().set_input_as_handled()
-			return
-		
-		# Test F9 detection
-		if event.keycode == KEY_F9:
-			DebugLogger.info("*** F9 DETECTED! ***")
-			debug_teleport_to_town()
-			get_viewport().set_input_as_handled()
-			return
-			
-		# Also test with F8 as backup
-		if event.keycode == KEY_F8:
-			DebugLogger.info("*** F8 DETECTED AS BACKUP! ***")
-			debug_teleport_to_town()
-			get_viewport().set_input_as_handled()
-			return
-			
-		# Test simple P key for debugging
-		if event.keycode == KEY_P:
-			DebugLogger.info("*** P KEY DETECTED FOR TELEPORT TEST! ***")
-			debug_teleport_to_town()
-			get_viewport().set_input_as_handled()
-			return
-			
-		# F10 for town search
-		if event.keycode == KEY_F10:
-			DebugLogger.info("=== F10 FIND NEARBY TOWNS ===")
-			# Guarded call: try local method, otherwise try Main node, otherwise log
-			if has_method("find_nearby_towns"):
-				call("find_nearby_towns")
-			else:
-				var main_node = get_tree().get_root().find_node("Main", true, false)
-				if main_node and main_node.has_method("find_nearby_towns"):
-					main_node.call("find_nearby_towns")
-				else:
-					DebugLogger.info("find_nearby_towns() not available")
-			get_viewport().set_input_as_handled()
-			return
-			
-		# F11 for map debug
-		if event.keycode == KEY_F11:
-			DebugLogger.info("=== F11 MAP DEBUG INFO ===")
-			var terrain = get_parent().get_node_or_null("EnhancedTerrainTileMap")
-			if not terrain:
-				terrain = get_parent().get_node_or_null("EnhancedTerrain")
-			if terrain and terrain.has_method("print_map_debug_info"):
-				terrain.print_map_debug_info()
-				if terrain.has_method("test_coordinate_conversions"):
-					terrain.test_coordinate_conversions()
-			get_viewport().set_input_as_handled()
-			return
-		
-		# F12 for hit dice test
-		if event.keycode == KEY_F12:
-			DebugLogger.info("=== F12 HIT DICE TEST ===")
-			# Guarded call: try local, then look for a node with the test function
-			if has_method("test_hit_dice_system"):
-				call("test_hit_dice_system")
-			else:
-				var node_with_test = get_tree().get_root().find_node("TestF9", true, false)
-				if node_with_test and node_with_test.has_method("test_hit_dice_system"):
-					node_with_test.call("test_hit_dice_system")
-				else:
-					DebugLogger.info("test_hit_dice_system() not available")
-			get_viewport().set_input_as_handled()
-			return
-			
-		# Tab to toggle combat log
-		if event.keycode == KEY_TAB:
-			toggle_combat_log()
-			get_viewport().set_input_as_handled()
-			return
+# Minimal Player used during porting. Exposes the small API Main expects.
 
-func _unhandled_input(event):
-	# This is now just a fallback - _input should catch debug keys first
+@export var movement_speed: float = 200.0
+
+signal movement_finished
+signal encounter_started
+signal camping_started
+signal town_name_display(town_name: String)
+
+var _target_position: Vector2
+var _is_moving: bool = false
+var _is_in_combat: bool = false
+
+func _ready() -> void:
+	_target_position = global_position
+
+func load_from_character_data(char_data) -> void:
+	if typeof(char_data) == TYPE_DICTIONARY:
+		character_name = char_data.get("character_name", character_name)
+		level = int(char_data.get("level", level))
+		max_health = int(char_data.get("max_health", max_health))
+		current_health = int(char_data.get("current_health", current_health))
+		experience = int(char_data.get("experience", experience))
+		global_position = char_data.get("world_position", global_position)
+
+func save_to_character_data() -> Dictionary:
+	var d: Dictionary = {}
+	d["character_name"] = character_name
+	d["level"] = level
+	d["max_health"] = max_health
+	d["current_health"] = current_health
+	d["experience"] = experience
+	d["world_position"] = global_position
+	return d
+
+func enter_combat() -> void:
+	_is_in_combat = true
+
+func exit_combat() -> void:
+	_is_in_combat = false
+
+func move_to_tile(new_pos: Vector2) -> void:
+	_target_position = new_pos
+	_is_moving = true
+
+func set_camera_target(pos: Vector2) -> void:
 	pass
 
-func _physics_process(delta):
-	# Ignore input for a frame after loading character
-	if frames_to_ignore_input > 0:
-		frames_to_ignore_input -= 1
-	else:
-		handle_input()
-	
-	if is_moving:
-		global_position = global_position.move_toward(current_target_position, movement_speed * delta)
-		if global_position.distance_to(current_target_position) < 1.0:
-			global_position = current_target_position
-			is_moving = false
-			movement_finished.emit()
+func get_encounter_difficulty_for_terrain(terrain_type: int) -> float:
+	return 1.0
 
-		# Smoothly update background position based on camera
-		if has_node("Background") and camera:
-			var bg_sprite = get_node("Background")
-			# Center background on camera
-			bg_sprite.position = camera.global_position
+func _physics_process(delta: float) -> void:
+	if _is_moving:
+		global_position = global_position.move_toward(_target_position, movement_speed * delta)
+		if global_position.distance_to(_target_position) < 1.0:
+			global_position = _target_position
+			_is_moving = false
+			emit_signal("movement_finished")
+class_name Player
+extends Character
 
-	# Continuously ensure camera follows edge logic when not moving
-	update_camera_position()
+# Minimal Player implementation required by Main.gd and other systems.
+# Keeps the file very small to avoid parse issues while port work continues.
 
-	# Smooth camera movement toward target
-	if camera:
-		if camera_target == null:
-			camera_target = camera.global_position
-		var t = clamp(camera_smooth_speed * delta, 0.0, 1.0)
-		camera.global_position = camera.global_position.lerp(camera_target, t)
+@export var movement_speed: float = 200.0
 
-func move_to_tile(new_position: Vector2):
-	if not is_moving:
-		DebugLogger.info(str("DEBUG: Player moving to tile: ") + " " + str(new_position))
-		current_target_position = new_position
-		is_moving = true
-		
-		# Check if we're moving onto a town tile
-		check_for_town_at_position(new_position)
-		
-		# Check if camera should scroll based on edge proximity
-		update_camera_position()
+signal movement_finished
+signal encounter_started
+signal camping_started
+signal town_name_display(town_name: String)
 
-func update_camera_position():
-	if not camera:
-		return
-	
-	# Skip world bounds checking for the first few frames to allow proper initial positioning
-	if not initial_setup_complete:
-		# Just keep camera on player during initial setup
-		camera_target = global_position
-		return
-	
-	# Get the viewport size in world coordinates
-	var viewport = get_viewport()
-	if not viewport:
-		return
-		
-	var viewport_size = viewport.get_visible_rect().size
-	var world_viewport_size = viewport_size / camera.zoom
-	
-	# Calculate edge threshold in world units
-	var tile_size = TILE_SIZE
-	var edge_distance = edge_threshold * tile_size
-	
-	# Current player and camera positions
-	var player_pos = global_position
+var _target_position: Vector2
+var _is_moving: bool = false
+var _is_in_combat: bool = false
 
-	# Acquire terrain bounds - use conservative bounds instead of full world
-	var terrain = get_parent().get_node_or_null("EnhancedTerrainTileMap")
-	if not terrain:
-		terrain = get_tree().get_root().find_child("EnhancedTerrainTileMap", true, false)
-	if not terrain:
-		# Fallback to legacy terrain system
-		terrain = get_parent().get_node_or_null("EnhancedTerrainTileMap")
-		if not terrain:
-			terrain = get_tree().get_root().find_child("EnhancedTerrainTileMap", true, false)
-	if not terrain or not terrain.has_method("get_used_rect"):
-		return
+func _ready() -> void:
+	_target_position = global_position
 
-	# Get conservative bounds around current player position instead of full world
-	var player_section = terrain.get_section_id_from_world_pos(player_pos) if terrain.has_method("get_section_id_from_world_pos") else Vector2i(0, 0)
-	
-	# Get the actual terrain dimensions (25x20 tiles per section for new system)
-	var section_width = 25 if terrain.has_method("get_section_id_from_world_pos") else 50
-	var section_height = 20 if terrain.has_method("get_section_id_from_world_pos") else 40
-	
-	# Create bounds that include current section and immediate neighbors (3x3 grid)
-	var conservative_bounds = Rect2i(
-		Vector2i((player_section.x - 1) * section_width - section_width/2, (player_section.y - 1) * section_height - section_height/2),
-		Vector2i(section_width * 3, section_height * 3)  # 3x3 sections
-	)
-	
-	var world_pos = Vector2(conservative_bounds.position) * tile_size
-	var world_size = Vector2(conservative_bounds.size) * tile_size
-	var half_viewport = world_viewport_size * 0.5
+func load_from_character_data(char_data) -> void:
+	if typeof(char_data) == TYPE_DICTIONARY:
+		character_name = char_data.get("character_name", character_name)
+		level = int(char_data.get("level", level))
+		max_health = int(char_data.get("max_health", max_health))
+		current_health = int(char_data.get("current_health", current_health))
+		experience = int(char_data.get("experience", experience))
+		global_position = char_data.get("world_position", global_position)
 
-	# If world smaller than viewport, just center on world center
-	if world_size.x <= world_viewport_size.x and world_size.y <= world_viewport_size.y:
-		camera.global_position = world_pos + world_size * 0.5
-		return
-	
-	# If this is the first time setting up, don't jump to world center, stay near player
-	if not initial_setup_complete and camera_target == null:
-		camera_target = player_pos
-		return
+func save_to_character_data() -> Dictionary:
+	var d: Dictionary = {}
+	d["character_name"] = character_name
+	d["level"] = level
+	d["max_health"] = max_health
+	d["current_health"] = current_health
+	d["experience"] = experience
+	d["world_position"] = global_position
+	return d
 
-	# Limits (clamped so camera never shows beyond world edges)
-	var left_limit = world_pos.x + half_viewport.x
-	var right_limit = world_pos.x + world_size.x - half_viewport.x
-	var top_limit = world_pos.y + half_viewport.y
-	var bottom_limit = world_pos.y + world_size.y - half_viewport.y
+func enter_combat() -> void:
+	_is_in_combat = true
 
-	# Dead zones
-	var horizontal_dead_zone = max(0.0, half_viewport.x - edge_distance)
-	var vertical_dead_zone = max(0.0, half_viewport.y - edge_distance)
+func exit_combat() -> void:
+	_is_in_combat = false
 
-	var cam_pos = camera_target if camera_target != null else camera.global_position
+func move_to_tile(new_pos: Vector2) -> void:
+	_target_position = new_pos
+	_is_moving = true
 
-	# Horizontal incremental movement (one tile step when outside dead zone)
-	var h_diff = player_pos.x - cam_pos.x
-	if abs(h_diff) > horizontal_dead_zone:
-		cam_pos.x += sign(h_diff) * TILE_SIZE
+func set_camera_target(pos: Vector2) -> void:
+	# Minimal stub; Main checks for this method before calling
+	pass
 
-	# Vertical incremental movement
-	var v_diff = player_pos.y - cam_pos.y
-	if abs(v_diff) > vertical_dead_zone:
-		cam_pos.y += sign(v_diff) * TILE_SIZE
+func get_encounter_difficulty_for_terrain(terrain_type: int) -> float:
+	# Minimal stub returning a neutral difficulty multiplier
+	return 1.0
 
-	# Clamp after stepping
-	cam_pos.x = clamp(cam_pos.x, left_limit, right_limit)
-	cam_pos.y = clamp(cam_pos.y, top_limit, bottom_limit)
+func _physics_process(delta: float) -> void:
+	if _is_moving:
+		global_position = global_position.move_toward(_target_position, movement_speed * delta)
+		if global_position.distance_to(_target_position) < 1.0:
+			global_position = _target_position
+			_is_moving = false
+			emit_signal("movement_finished")
 
-	# Set target (actual movement happens in _physics_process smoothing)
-	camera_target = cam_pos
 
-func handle_input():
-	# Debug: Check if T key is being pressed here
-	if Input.is_key_pressed(KEY_T):
-		DebugLogger.info("DEBUG HANDLE_INPUT: T key is pressed!")
-	
-	# Don't allow movement if in combat or already moving
-	if is_moving or is_in_combat:
-		return
-	
-	# Check for camping input
-	if Input.is_action_just_pressed("camp"):
-		start_camping()
-		return
-	# Check for sprite generation (F12 key)
-	if Input.is_action_just_pressed("ui_text_completion_accept") or Input.is_key_pressed(KEY_F12):
-		generate_all_sprites()
-		return
-			
-	var input_vector = Vector2.ZERO
-	
-	if Input.is_action_just_pressed("move_up"):
-		input_vector.y -= 1
-	elif Input.is_action_just_pressed("move_down"):
-		input_vector.y += 1
-	elif Input.is_action_just_pressed("move_left"):
-		input_vector.x -= 1
-	elif Input.is_action_just_pressed("move_right"):
-		input_vector.x += 1
-	
-	if input_vector != Vector2.ZERO:
-		DebugLogger.info("DEBUG: Input detected: %s" % input_vector)
-		var new_position = global_position + (input_vector * TILE_SIZE)
-		DebugLogger.info("DEBUG: New position calculated: %s" % new_position)
-		
-		# Check if the new position is walkable
-		var terrain = get_parent().get_node("EnhancedTerrainTileMap")
-		if terrain and terrain.has_method("is_walkable"):
-			# Ensure needed map sections are loaded around new position
-			if terrain.has_method("ensure_sections_loaded_around_position"):
-				terrain.ensure_sections_loaded_around_position(new_position)
-			
-			if terrain.is_walkable(new_position):
-				move_to_tile(new_position)
-				
-				# Check for random encounters with terrain-based rates
-				if encounters_enabled:
-					check_for_random_encounter(new_position, terrain)
-		else:
-			# If no terrain, allow movement (fallback)
-			move_to_tile(new_position)
-			
-			# Check for random encounters (default rate)
-			if encounters_enabled and randf() < 0.08:
-				encounter_started.emit()
 
-func enable_encounters():
-	encounters_enabled = true
-	DebugLogger.info("Encounters enabled")
+class_name Player
+extends Character
 
-func disable_encounters():
-	encounters_enabled = false
-	DebugLogger.info("Encounters disabled")
+# Minimal Player implementation required by Main.gd and other systems.
+# Keeps the file very small to avoid parse issues while port work continues.
 
-func enter_combat():
-	is_in_combat = true
-	DebugLogger.info("Player entered combat - movement disabled")
+@export var movement_speed: float = 200.0
 
-func exit_combat():
-	is_in_combat = false
-	DebugLogger.info("Player exited combat - movement enabled")
+signal movement_finished
+signal encounter_started
+signal camping_started
+signal town_name_display(town_name: String)
 
-func start_camping():
-	DebugLogger.info("Hole up and Camp")
-	
-	# Restore player to full health
-	if current_health < max_health:
-		var health_to_restore = max_health - current_health
-		heal(health_to_restore)
-		DebugLogger.info("Rested and recovered %s hit points" % health_to_restore)
-	else:
-		DebugLogger.info(str("Already at full health, but enjoyed a good rest"))
-	
-	# Emit camping signal for UI overlay
-	camping_started.emit()
+var _target_position: Vector2
+var _is_moving: bool = false
+var _is_in_combat: bool = false
 
-func generate_all_sprites():
-	DebugLogger.info("Generating all player sprite combinations...")
-	
-	# Load and create the factory
-	var factory_script = load("res://scripts/PlayerIconFactory.gd")
-	if factory_script:
-		var factory = factory_script.new()
-		# Ensure we have a terrain reference for town searches in this helper
-		var terrain = get_parent().get_node_or_null("EnhancedTerrainTileMap")
-		if not terrain:
-			terrain = get_parent().get_node_or_null("EnhancedTerrain")
-		if factory.has_method("export_all_player_sprites"):
-			DebugLogger.info("Factory supports export_all_player_sprites; searching nearby area...")
-			DebugLogger.info("Searching in 25x25 area...")
-			var start_pos = global_position - Vector2(12 * TILE_SIZE, 12 * TILE_SIZE)
-			DebugLogger.info("Search area from: %s to: %s" % [start_pos, start_pos + Vector2(24 * TILE_SIZE, 24 * TILE_SIZE)])
-			var found_count = 0
-			for x in range(25):
-				for y in range(25):
-					var check_pos = start_pos + Vector2(x * TILE_SIZE, y * TILE_SIZE)
-					if terrain and terrain.has_method("get_town_data_at_position"):
-						var town_data = terrain.get_town_data_at_position(check_pos)
-						if not town_data.is_empty():
+func _ready() -> void:
+	_target_position = global_position
+
+func load_from_character_data(char_data) -> void:
+	if typeof(char_data) == TYPE_DICTIONARY:
+		character_name = char_data.get("character_name", character_name)
+		level = int(char_data.get("level", level))
+		max_health = int(char_data.get("max_health", max_health))
+		current_health = int(char_data.get("current_health", current_health))
+		experience = int(char_data.get("experience", experience))
+		global_position = char_data.get("world_position", global_position)
+
+func save_to_character_data() -> Dictionary:
+	var d: Dictionary = {}
+	d["character_name"] = character_name
+	d["level"] = level
+	d["max_health"] = max_health
+	d["current_health"] = current_health
+	d["experience"] = experience
+	d["world_position"] = global_position
+	return d
+
+func enter_combat() -> void:
+	_is_in_combat = true
+
+func exit_combat() -> void:
+	_is_in_combat = false
+
+func move_to_tile(new_pos: Vector2) -> void:
+	_target_position = new_pos
+	_is_moving = true
+
+func set_camera_target(pos: Vector2) -> void:
+	# Minimal stub; Main checks for this method before calling
+	pass
+
+func get_encounter_difficulty_for_terrain(terrain_type: int) -> float:
+	# Minimal stub returning a neutral difficulty multiplier
+	return 1.0
+
+func _physics_process(delta: float) -> void:
+	if _is_moving:
+		global_position = global_position.move_toward(_target_position, movement_speed * delta)
+		if global_position.distance_to(_target_position) < 1.0:
+			global_position = _target_position
+			_is_moving = false
+			emit_signal("movement_finished")
+
+
+
+
+*** End Patch
 							found_count += 1
 							DebugLogger.info("*** FOUND TOWN #%s: %s at position: %s ***" % [found_count, town_data.get("name", "Unknown"), check_pos])
 

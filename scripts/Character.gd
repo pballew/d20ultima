@@ -24,10 +24,10 @@ extends Node2D
 @export var damage_dice: String = "1d6"
 var initiative: int = 0  # 3.5 Initiative value
 
-# Equipment
-var weapon: Item = null
-var armor: Item = null
-var inventory: Array[Item] = []
+# Equipment (avoid forward type annotations to prevent compile-order issues)
+var weapon = null
+var armor = null
+var inventory = []
 
 signal health_changed(new_health: int, max_health: int)
 signal experience_changed(new_xp: int, level: int)
@@ -72,13 +72,13 @@ func roll_dice(dice_string: String) -> int:
 	
 	return base_roll + modifier
 
-func make_attack_roll(target: Character) -> bool:
+func make_attack_roll(target) -> bool:
 	var roll = roll_d20()
 	var total = roll + attack_bonus + get_modifier(strength)
 	DebugLogger.info("Attack roll: %d + %d + %d = %d" % [roll, attack_bonus, get_modifier(strength), total])
 	return total >= target.armor_class
 
-func deal_damage(target: Character):
+func deal_damage(target):
 	var damage = roll_dice(damage_dice) + get_modifier(strength)
 	target.take_damage(damage)
 	DebugLogger.info("Dealt %d damage to %s" % [damage, str(target.name)])
@@ -88,8 +88,9 @@ func take_damage(amount: int, damage_type: String = "physical"):
 	current_health = max(0, current_health)
 	health_changed.emit(current_health, max_health)
 	
-	# Print health description for non-player characters
-	if not self is Player:
+	# Print health description for non-player characters (avoid direct Player reference)
+	# If a node has 'is_player' property or method, it can opt out of verbose logging.
+	if not (has_method("is_player") or (has_meta("is_player") and get_meta("is_player"))):
 		DebugLogger.info("%s %s" % [str(character_name), str(get_health_description())])
 	
 	if current_health <= 0:
@@ -152,20 +153,20 @@ func make_saving_throw(type: String, difficulty_class: int) -> bool:
 	DebugLogger.info("Saving throw (%s): %d + %d = %d vs DC %d" % [str(type), roll, modifier, total, difficulty_class])
 	return total >= difficulty_class
 
-func add_item(item: Item):
+func add_item(item):
 	inventory.append(item)
 
-func remove_item(item: Item):
+func remove_item(item):
 	inventory.erase(item)
 
-func equip_weapon(new_weapon: Item):
+func equip_weapon(new_weapon):
 	if weapon:
 		add_item(weapon)
 	weapon = new_weapon
 	remove_item(new_weapon)
 	update_derived_stats()
 
-func equip_armor(new_armor: Item):
+func equip_armor(new_armor):
 	if armor:
 		add_item(armor)
 	armor = new_armor

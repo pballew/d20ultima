@@ -19,7 +19,6 @@ var test_screen_scene = preload("res://scenes/TestScreen.tscn")
 const Character = preload("res://scripts/Character.gd")
 const Monster = preload("res://scripts/Monster.gd")
 const MonsterData = preload("res://scripts/MonsterData.gd")
-const Player = preload("res://scripts/Player.gd")
 
 func _ready():
 	# Add to group for easy finding
