@@ -23,3 +23,6 @@ grow_vertical = 2
 visible = false
 
 [node name="TownDialog" parent="." instance=ExtResource("4_town_dialog")]
+
+
+

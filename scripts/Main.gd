@@ -224,7 +224,12 @@ func _on_encounter_started():
 	
 	# Enter combat mode - disable player movement
 	player.enter_combat()
-	
+
+	# Instantiate CombatScreen UI so the player can choose actions
+	var combat_screen_scene = load("res://scenes/CombatScreen.tscn")
+	var combat_screen = combat_screen_scene.instantiate()
+	add_child(combat_screen)
+
 	# Start combat; CombatScreen/CombatManager handle displaying combat visuals
 	combat_manager.start_combat(player, [enemy])
 	
@@ -1437,6 +1442,12 @@ func _input(event):
 		_toggle_test_screen()
 		return
 		
+	# Force a combat encounter with F9 (debug/testing)
+	if event is InputEventKey and event.pressed and event.keycode == KEY_F9:
+		DebugLogger.info("Debug: Forcing combat via F9")
+		_on_encounter_started()
+		return
+	
 	# Handle map regeneration with PageDown key
 	if event.is_action_pressed("ui_page_down"):
 		regenerate_map()

@@ -12,6 +12,7 @@ signal town_name_display(town_name: String)
 
 var _target_position: Vector2
 var _is_moving: bool = false
+var _is_in_combat: bool = false
 var character_name: String = "Unnamed"
 var level: int = 1
 var max_health: int = 100
@@ -46,6 +47,42 @@ func move_to_tile(new_pos: Vector2) -> void:
 
 func set_camera_target(pos: Vector2) -> void:
     pass
+
+func enter_combat() -> void:
+    # Minimal stub so Main.gd can call this safely.
+    _is_in_combat = true
+
+func exit_combat() -> void:
+    _is_in_combat = false
+
+func get_terrain_type_at_position(world_pos: Vector2, terrain_system) -> int:
+    # Best-effort compatibility: ask the terrain system if it supports tile/position queries.
+    if terrain_system != null:
+        if terrain_system.has_method("get_terrain_type_at_tile"):
+            var tile_pos = Vector2i(int(world_pos.x / 32), int(world_pos.y / 32))
+            return terrain_system.get_terrain_type_at_tile(tile_pos)
+        elif terrain_system.has_method("get_terrain_at_position"):
+            return terrain_system.get_terrain_at_position(world_pos)
+        elif terrain_system.has_method("get_terrain_type_at_position"):
+            return terrain_system.get_terrain_type_at_position(world_pos)
+    # Default: treat as grass (0)
+    return 0
+
+func get_encounter_difficulty_for_terrain(terrain_type: int) -> String:
+    # Return the same terrain-to-difficulty mapping used by the real Player.gd
+    match terrain_type:
+        4, 10:
+            return "forest"
+        5, 11:
+            return "mountain"
+        13:
+            return "swamp"
+        3, 7, 8:
+            return "water"
+        14:
+            return "civilized"
+        _:
+            return "wilderness"
 
 func _physics_process(delta: float) -> void:
     if _is_moving:
