@@ -4,9 +4,9 @@ using System.Collections.Generic;
 
 public partial class CombatManager : Node
 {
-    [Signal] public delegate void combat_finished();
-    [Signal] public delegate void combat_message(string message);
-    [Signal] public delegate void turn_changed(Node current_character);
+    [Signal] public delegate void CombatFinishedEventHandler();
+    [Signal] public delegate void CombatMessageEventHandler(string message);
+    [Signal] public delegate void TurnChangedEventHandler(Node current_character);
 
     private List<Character> combat_participants = new List<Character>();
     private int current_turn_index = -1;
@@ -18,9 +18,13 @@ public partial class CombatManager : Node
         if (player != null) combat_participants.Add(player);
         if (enemies != null)
         {
-            foreach (var e in enemies)
-                if (e is Character c)
+            for (int i = 0; i < enemies.Count; i++)
+            {
+                object eObj = enemies[i];
+                var c = eObj as Character;
+                if (c != null)
                     combat_participants.Add(c);
+            }
         }
 
         is_combat_active = true;

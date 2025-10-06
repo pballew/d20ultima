@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://bp5rf1mwu3yxr"]
 
-[ext_resource type="Script" path="res://scripts/CoordinateOverlay.gd" id="1_coord_overlay"]
+[ext_resource type="Script" path="res://scripts/CoordinateOverlay.cs" id="1"]
 
 [node name="CoordinateOverlay" type="Control"]
 layout_mode = 3
@@ -8,7 +8,7 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 mouse_filter = 2
-script = ExtResource("1_coord_overlay")
+script = ExtResource("1")
 
 [node name="Background" type="ColorRect" parent="."]
 layout_mode = 1

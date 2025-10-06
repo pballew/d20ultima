@@ -28,25 +28,37 @@ public partial class Main : Node2D
         // Connect signals defensively (works whether player is GDScript or C#)
         if (player != null)
         {
-            if (!player.IsConnected("encounter_started", this, nameof(OnEncounterStarted)))
-                player.Connect("encounter_started", this, nameof(OnEncounterStarted));
-            if (!player.IsConnected("camping_started", this, nameof(OnCampingStarted)))
-                player.Connect("camping_started", this, nameof(OnCampingStarted));
-            if (!player.IsConnected("movement_finished", this, nameof(OnPlayerMoved)))
-                player.Connect("movement_finished", this, nameof(OnPlayerMoved));
-            if (!player.IsConnected("town_name_display", this, nameof(OnTownNameDisplay)))
-                player.Connect("town_name_display", this, nameof(OnTownNameDisplay));
+            // Use Godot.Callable where appropriate; connect only if not already connected
+            var selfCallable = new Callable(this, nameof(OnEncounterStarted));
+            if (!player.IsConnected("encounter_started", selfCallable))
+                player.Connect("encounter_started", selfCallable);
+
+            selfCallable = new Callable(this, nameof(OnCampingStarted));
+            if (!player.IsConnected("camping_started", selfCallable))
+                player.Connect("camping_started", selfCallable);
+
+            selfCallable = new Callable(this, nameof(OnPlayerMoved));
+            if (!player.IsConnected("movement_finished", selfCallable))
+                player.Connect("movement_finished", selfCallable);
+
+            selfCallable = new Callable(this, nameof(OnTownNameDisplay));
+            if (!player.IsConnected("town_name_display", selfCallable))
+                player.Connect("town_name_display", selfCallable);
         }
 
         if (combat_manager != null)
         {
-            // wire combat finished if available
-            if (combat_manager.HasSignal("combat_finished") && !combat_manager.IsConnected("combat_finished", this, nameof(OnCombatFinished)))
-                combat_manager.Connect("combat_finished", this, nameof(OnCombatFinished));
+            // wire combat finished if available using Callable
+            if (combat_manager.HasSignal("combat_finished"))
+            {
+                var cmCallableTop = new Callable(this, nameof(OnCombatFinished));
+                if (!combat_manager.IsConnected("combat_finished", cmCallableTop))
+                    combat_manager.Connect("combat_finished", cmCallableTop);
+            }
         }
 
-        // Wait one frame to allow terrain to initialize (approximation of await)
-        GetTree().CallGroupDeferred("main", nameof(Deferred_Init));
+    // Wait one frame to allow terrain to initialize; schedule deferred init
+    GetTree().CallDeferred(nameof(Deferred_Init));
     }
 
     private void Deferred_Init()
@@ -112,7 +124,7 @@ public partial class Main : Node2D
         if (terrain == null) return true;
         if (terrain.HasMethod("is_walkable"))
         {
-            var res = terrain.Call("is_walkable", worldPos);
+            object res = terrain.Call("is_walkable", worldPos);
             if (res is bool b) return b;
         }
         return true; // conservative fallback
@@ -179,8 +191,9 @@ public partial class Main : Node2D
         // Connect to combat finish (best-effort)
         if (combat_manager != null && combat_manager.HasSignal("combat_finished"))
         {
-            if (!combat_manager.IsConnected("combat_finished", this, nameof(OnCombatFinished)))
-                combat_manager.Connect("combat_finished", this, nameof(OnCombatFinished));
+                var cmCallable = new Callable(this, nameof(OnCombatFinished));
+                if (!combat_manager.IsConnected("combat_finished", cmCallable))
+                    combat_manager.Connect("combat_finished", cmCallable);
         }
     }
 
@@ -190,10 +203,10 @@ public partial class Main : Node2D
         if (t == null) t = GetNodeOrNull<Node>("EnhancedTerrain");
         if (t != null && player != null && player.HasMethod("get_terrain_type_at_position"))
         {
-            var res = player.Call("get_terrain_type_at_position", player.GlobalPosition, t);
-            if (res is int i) return i;
-            if (res is long l) return (int)l;
-            if (int.TryParse(res?.ToString() ?? "0", out var parsed)) return parsed;
+                object resObj = player.Call("get_terrain_type_at_position", player.GlobalPosition, t);
+                if (resObj is int ii) return ii;
+                if (resObj is long ll) return (int)ll;
+                if (int.TryParse(resObj?.ToString() ?? "0", out var parsed)) return parsed;
         }
         return 0;
     }

@@ -10,6 +10,7 @@ var current_character: CharacterData
 var quit_confirmation_dialog: AcceptDialog
 ## Controls whether pressing Q in-game saves and returns to menu (true) or saves and quits (false)
 var q_saves_to_menu: bool = true
+var _townDialogConnectAttempts: int = 0
 
 func _ready():
 	# Add GameController to a group so Player can find it
@@ -28,9 +29,8 @@ func _ready():
 	# Connect main menu signals
 	main_menu.start_game.connect(_on_start_game)
 	
-	# Connect town dialog signals
-	town_dialog.town_entered.connect(_on_town_entered)
-	town_dialog.dialog_cancelled.connect(_on_town_dialog_cancelled)
+	# Defer connecting to town dialog signals until after all nodes finish instantiation
+	call_deferred("_connect_town_dialog_signals")
 	
 	# Ensure main menu fills the controller (only for Control nodes)
 	main_menu.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -272,5 +272,43 @@ func _on_town_entered(town_data: Dictionary):
 func _on_town_dialog_cancelled():
 	"""Handle when player cancels town entry"""
 	DebugLogger.info("Player continued journey without entering town")
+
+
+func _connect_town_dialog_signals():
+	if town_dialog:
+		var town_connected = false
+		var cancel_connected = false
+
+		# Try using the SignalProxy property first
+		var proxy = town_dialog.get("town_entered")
+		if proxy != null:
+			# proxy.connect may not return a status; consider it connected
+			proxy.connect(self, "_on_town_entered")
+			town_connected = true
+		elif town_dialog.has_signal("town_entered"):
+			var err = town_dialog.connect("town_entered", Callable(self, "_on_town_entered"))
+			if err == OK:
+				town_connected = true
+
+		# dialog_cancelled
+		proxy = town_dialog.get("dialog_cancelled")
+		if proxy != null:
+			proxy.connect(self, "_on_town_dialog_cancelled")
+			cancel_connected = true
+		elif town_dialog.has_signal("dialog_cancelled"):
+			var err2 = town_dialog.connect("dialog_cancelled", Callable(self, "_on_town_dialog_cancelled"))
+			if err2 == OK:
+				cancel_connected = true
+
+		if not (town_connected and cancel_connected):
+			_townDialogConnectAttempts += 1
+			if _townDialogConnectAttempts <= 3:
+				call_deferred("_connect_town_dialog_signals")
+				return
+			else:
+				if not town_connected:
+					DebugLogger.warn("TownDialog missing 'town_entered' signal at deferred connect time")
+				if not cancel_connected:
+					DebugLogger.warn("TownDialog missing 'dialog_cancelled' signal at deferred connect time")
 
 

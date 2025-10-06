@@ -1,9 +1,9 @@
 [gd_scene load_steps=5 format=3 uid="uid://clwoo0ksqnr71"]
 
-[ext_resource type="Script" uid="uid://cfdene1me2dnu" path="res://scripts/GameController.gd" id="1_game_controller"]
+[ext_resource type="Script" path="res://scripts/GameController.gd" id="1_game_controller"]
 [ext_resource type="PackedScene" path="res://scenes/MainMenu.tscn" id="2_main_menu"]
-[ext_resource type="PackedScene" uid="uid://bklpfbydogsrm" path="res://scenes/Main.tscn" id="3_main_game"]
-[ext_resource type="PackedScene" uid="uid://bkp4sb2fw8grl" path="res://scenes/TownDialog.tscn" id="4_town_dialog"]
+[ext_resource type="PackedScene" path="res://scenes/Main.tscn" id="3_main_game"]
+[ext_resource type="PackedScene" path="res://scenes/TownDialog.tscn" id="4_town_dialog"]
 
 [node name="GameController" type="Control"]
 layout_mode = 3
@@ -23,6 +23,6 @@ grow_vertical = 2
 visible = false
 
 [node name="TownDialog" parent="." instance=ExtResource("4_town_dialog")]
-
-
-
+layout_mode = 1
+grow_horizontal = 2
+grow_vertical = 2

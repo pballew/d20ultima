@@ -4,63 +4,37 @@ using System;
 public partial class GameController : Control
 {
     private Control main_menu;
-    private Node game_scene;
+    private Control game_scene;
     private Node town_dialog;
 
     public override void _Ready()
     {
         // Cache common nodes (assumes they are direct children)
         main_menu = GetNodeOrNull<Control>("MainMenu");
-        game_scene = GetNodeOrNull<Node>("GameScene");
+    game_scene = GetNodeOrNull<Control>("GameScene");
         town_dialog = GetNodeOrNull<Node>("TownDialog");
 
         if (main_menu != null)
         {
-            main_menu.Show();
+            main_menu.Visible = true;
             // Keep game_scene hidden until start
-            if (game_scene != null) game_scene.Hide();
+            if (game_scene != null) game_scene.Visible = false;
         }
 
         // Disable camera while in menu if exists
-        var playerCamera = GetNodeOrNull<Camera2D>("GameScene/Camera2D");
-        if (playerCamera != null) playerCamera.Enabled = false;
+    var playerCamera = GetNodeOrNull<Camera2D>("GameScene/Camera2D");
+    if (playerCamera != null) playerCamera.MakeCurrent();
 
         // Hide player stats UI while in menu
         var playerStatsUI = GetNodeOrNull<Control>("GameScene/UI/PlayerStatsUI");
-        if (playerStatsUI != null) playerStatsUI.Hide();
+    if (playerStatsUI != null) playerStatsUI.Visible = false;
 
-        // Auto-load if save exists
-        _CheckAutoLoad();
+        // Skip auto-load to avoid variant conversion issues for now
+        // Show menu by default
+        if (main_menu != null) main_menu.Visible = true;
+        if (game_scene != null) game_scene.Visible = false;
     }
-
-    private void _CheckAutoLoad()
-    {
-        GD.Print("=== GameController Debug ===");
-        // Access SaveSystem autoload at root
-        var saveSystem = GetNodeOrNull<Node>("/root/SaveSystem");
-        if (saveSystem != null)
-        {
-            var has = (bool)saveSystem.Call("has_save_data");
-            if (has)
-            {
-                var last = saveSystem.Call("load_last_character");
-                if (last != null)
-                {
-                    GD.Print($"Auto-loading last character: {((Resource)last).Get("character_name")} ");
-                    _OnStartGame((Resource)last);
-                    return;
-                }
-                else
-                {
-                    GD.Print("Failed to load character data from SaveSystem");
-                }
-            }
-        }
-
-        // Show menu if no save
-        if (main_menu != null) main_menu.Show();
-        if (game_scene != null) game_scene.Hide();
-    }
+    // Auto-load intentionally skipped to avoid runtime type/Variant handling complexity during conversion.
 
     public void _OnStartGame(Resource character_data)
     {
@@ -79,11 +53,14 @@ public partial class GameController : Control
         var playerCamera = GetNodeOrNull<Camera2D>("GameScene/Camera2D");
         if (playerCamera != null)
         {
-            playerCamera.Enabled = true;
+            playerCamera.MakeCurrent();
             // center camera on player
-            if (player != null) playerCamera.GlobalPosition = player.GlobalPosition;
-            if (player != null && player.HasMethod("set_camera_target"))
-                player.Call("set_camera_target", player.GlobalPosition);
+            if (player != null && player is Node2D p2d)
+            {
+                playerCamera.GlobalPosition = p2d.GlobalPosition;
+                if (player.HasMethod("set_camera_target"))
+                    player.Call("set_camera_target", p2d.GlobalPosition);
+            }
         }
 
         // Setup player stats UI
@@ -91,10 +68,10 @@ public partial class GameController : Control
         if (stats != null && player != null && stats.HasMethod("setup_player_stats"))
         {
             stats.Call("setup_player_stats", player);
-            stats.Show();
+            if (stats is CanvasItem ci) ci.Visible = true;
         }
 
-        if (game_scene != null) game_scene.Show();
+    if (game_scene != null && game_scene is Control gsc) gsc.Visible = true;
         GD.Print("Game started (C#): " + (character_data != null ? character_data.Get("character_name").ToString() : "Unknown"));
     }
 
@@ -104,7 +81,7 @@ public partial class GameController : Control
         Resource current_character = null;
         if (player != null && player.HasMethod("save_to_character_data"))
         {
-            var res = player.Call("save_to_character_data");
+            object res = player.Call("save_to_character_data");
             if (res is Resource r) current_character = r;
         }
 

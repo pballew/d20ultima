@@ -4,7 +4,7 @@ func _initialize():
 	DebugLogger.info("Starting sprite generation...")
 	
 	# Load and create the factory
-	var factory_script = load("res://scripts/PlayerIconFactory.gd")
+	var factory_script = load("res://scripts/PlayerIconFactory.cs")
 	if factory_script:
 		var factory = factory_script.new()
 		if factory.has_method("export_all_player_sprites"):

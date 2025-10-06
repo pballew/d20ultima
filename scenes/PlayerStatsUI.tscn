@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://ckfj8w8hmxrq2"]
 
-[ext_resource type="Script" path="res://scripts/PlayerStatsUI.gd" id="1_stats_ui"]
+[ext_resource type="Script" path="res://scripts/PlayerStatsUI.cs" id="1_stats_ui"]
 
 [node name="PlayerStatsUI" type="Control"]
 layout_mode = 3

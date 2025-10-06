@@ -11,6 +11,7 @@ public partial class PlayerStatsUI : Control
     private ProgressBar healthBar;
     private Label xpLabel;
     private ProgressBar xpBar;
+    // Optional stat labels (may be absent in scene)
     private Label strLabel;
     private Label dexLabel;
     private Label conLabel;
@@ -38,6 +39,7 @@ public partial class PlayerStatsUI : Control
         attackLabel = GetNodeOrNull<Label>("VBoxContainer/CombatContainer/AttackBonusLabel");
     }
 
+    // Primary setup called by GameController (C# or GDScript)
     public void SetupPlayerStats(Node p)
     {
         if (p is Character c)
@@ -63,16 +65,20 @@ public partial class PlayerStatsUI : Control
         if (healthLabel != null) healthLabel.Text = $"{player.current_health}/{player.max_health}";
         if (healthBar != null) healthBar.Value = player.max_health > 0 ? (float)player.current_health / player.max_health * 100f : 0f;
         if (xpLabel != null) xpLabel.Text = $"XP: {player.experience}";
-        if (xpBar != null) xpBar.Value = player.GetXpProgress() * 100f;
-        if (strLabel != null) strLabel.Text = $"STR: {player.strength} ({(player.GetModifier(player.strength)>=0?"+":"")}{player.GetModifier(player.strength)})";
-        if (dexLabel != null) dexLabel.Text = $"DEX: {player.dexterity} ({(player.GetModifier(player.dexterity)>=0?"+":"")}{player.GetModifier(player.dexterity)})";
-        if (conLabel != null) conLabel.Text = $"CON: {player.constitution} ({(player.GetModifier(player.constitution)>=0?"+":"")}{player.GetModifier(player.constitution)})";
-        if (intLabel != null) intLabel.Text = $"INT: {player.intelligence} ({(player.GetModifier(player.intelligence)>=0?"+":"")}{player.GetModifier(player.intelligence)})";
-        if (wisLabel != null) wisLabel.Text = $"WIS: {player.wisdom} ({(player.GetModifier(player.wisdom)>=0?"+":"")}{player.GetModifier(player.wisdom)})";
-        if (chaLabel != null) chaLabel.Text = $"CHA: {player.charisma} ({(player.GetModifier(player.charisma)>=0?"+":"")}{player.GetModifier(player.charisma)})";
+        // Character may expose GetXpProgress or similar; try both patterns
+        try { if (xpBar != null) xpBar.Value = player.GetXpProgress() * 100f; } catch { /* ignore if not present */ }
+        if (strLabel != null) strLabel.Text = $"STR: {player.strength}";
+        if (dexLabel != null) dexLabel.Text = $"DEX: {player.dexterity}";
+        if (conLabel != null) conLabel.Text = $"CON: {player.constitution}";
+        if (intLabel != null) intLabel.Text = $"INT: {player.intelligence}";
+        if (wisLabel != null) wisLabel.Text = $"WIS: {player.wisdom}";
+        if (chaLabel != null) chaLabel.Text = $"CHA: {player.charisma}";
         if (acLabel != null) acLabel.Text = $"AC: {player.armor_class}";
         if (attackLabel != null) attackLabel.Text = $"Attack: +{player.attack_bonus}";
     }
+
+    // snake_case alias
+    public void update_all_stats() => UpdateAllStats();
 
     private void OnHealthChanged(int current, int max)
     {

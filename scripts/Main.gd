@@ -24,15 +24,10 @@ func _ready():
 	# Add to group for easy finding
 	add_to_group("main")
 	
-	# Connect signals
-	player.encounter_started.connect(_on_encounter_started)
-	player.camping_started.connect(_on_camping_started)
-	player.movement_finished.connect(_on_player_moved)
-	player.town_name_display.connect(_on_town_name_display)
-	combat_manager.combat_finished.connect(_on_combat_finished)
+	# Wait and connect player signals via helper; this retries for a few frames until C# registers them.
+	await _connect_player_signals()
 
-	# Wait for terrain to be fully generated before positioning camera
-	await get_tree().process_frame
+	combat_manager.combat_finished.connect(_on_combat_finished)
 	
 	# Ensure player starts on walkable terrain
 	ensure_player_safe_starting_position()
@@ -212,6 +207,43 @@ func ensure_player_safe_starting_position():
 			return
 	
 	DebugLogger.warn("Warning: Could not find safe starting position for player!")
+
+
+func _connect_player_signals() -> void:
+	var max_attempts = 8
+	var attempt = 0
+	while attempt < max_attempts:
+		if player:
+			# Try connecting preferred C# EventHandler signals first, with fallback to snake_case
+			if player.has_signal("EncounterStartedEventHandler"):
+				player.connect("EncounterStartedEventHandler", Callable(self, "_on_encounter_started"))
+			elif player.has_signal("encounter_started"):
+				player.connect("encounter_started", Callable(self, "_on_encounter_started"))
+
+			if player.has_signal("CampingStartedEventHandler"):
+				player.connect("CampingStartedEventHandler", Callable(self, "_on_camping_started"))
+			elif player.has_signal("camping_started"):
+				player.connect("camping_started", Callable(self, "_on_camping_started"))
+
+			if player.has_signal("MovementFinishedEventHandler"):
+				player.connect("MovementFinishedEventHandler", Callable(self, "_on_player_moved"))
+			elif player.has_signal("movement_finished"):
+				player.connect("movement_finished", Callable(self, "_on_player_moved"))
+
+			if player.has_signal("TownNameDisplayEventHandler"):
+				player.connect("TownNameDisplayEventHandler", Callable(self, "_on_town_name_display"))
+			elif player.has_signal("town_name_display"):
+				player.connect("town_name_display", Callable(self, "_on_town_name_display"))
+
+			# Done (we attempted connections); break out early
+			return
+
+		attempt += 1
+		# Wait one frame and retry
+		await get_tree().process_frame
+
+	# If we get here, no player or signals found after retries. Log it for diagnostics.
+	DebugLogger.warn("_connect_player_signals: timed out waiting for player signals (attempts=%d)" % max_attempts)
 
 func _on_encounter_started():
 	DebugLogger.info("A wild creature appears!")
@@ -1350,16 +1382,16 @@ func _exit_tree():
 			town_name_label.queue_free()
 		town_name_label = null
 	
-	# Disconnect all main signals if nodes still exist
+	# Disconnect all main signals if nodes still exist (use string-based checks)
 	if player and is_instance_valid(player):
-		if player.encounter_started.is_connected(_on_encounter_started):
-			player.encounter_started.disconnect(_on_encounter_started)
-		if player.camping_started.is_connected(_on_camping_started):
-			player.camping_started.disconnect(_on_camping_started)
-		if player.movement_finished.is_connected(_on_player_moved):
-			player.movement_finished.disconnect(_on_player_moved)
-		if player.town_name_display.is_connected(_on_town_name_display):
-			player.town_name_display.disconnect(_on_town_name_display)
+		if player.has_signal("EncounterStartedEventHandler") and player.is_connected("EncounterStartedEventHandler", Callable(self, "_on_encounter_started")):
+			player.disconnect("EncounterStartedEventHandler", Callable(self, "_on_encounter_started"))
+		if player.has_signal("CampingStartedEventHandler") and player.is_connected("CampingStartedEventHandler", Callable(self, "_on_camping_started")):
+			player.disconnect("CampingStartedEventHandler", Callable(self, "_on_camping_started"))
+		if player.has_signal("MovementFinishedEventHandler") and player.is_connected("MovementFinishedEventHandler", Callable(self, "_on_player_moved")):
+			player.disconnect("MovementFinishedEventHandler", Callable(self, "_on_player_moved"))
+		if player.has_signal("TownNameDisplayEventHandler") and player.is_connected("TownNameDisplayEventHandler", Callable(self, "_on_town_name_display")):
+			player.disconnect("TownNameDisplayEventHandler", Callable(self, "_on_town_name_display"))
 	
 	if combat_manager and is_instance_valid(combat_manager):
 		if combat_manager.combat_finished.is_connected(_on_combat_finished):

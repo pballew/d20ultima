@@ -1,0 +1,15 @@
+C:\Projects\d20ultima\.tools\asm_inspector\bin\Release\net8.0\asm_inspector.exe
+C:\Projects\d20ultima\.tools\asm_inspector\bin\Release\net8.0\asm_inspector.deps.json
+C:\Projects\d20ultima\.tools\asm_inspector\bin\Release\net8.0\asm_inspector.runtimeconfig.json
+C:\Projects\d20ultima\.tools\asm_inspector\bin\Release\net8.0\asm_inspector.dll
+C:\Projects\d20ultima\.tools\asm_inspector\bin\Release\net8.0\asm_inspector.pdb
+C:\Projects\d20ultima\.tools\asm_inspector\obj\Release\net8.0\asm_inspector.GeneratedMSBuildEditorConfig.editorconfig
+C:\Projects\d20ultima\.tools\asm_inspector\obj\Release\net8.0\asm_inspector.AssemblyInfoInputs.cache
+C:\Projects\d20ultima\.tools\asm_inspector\obj\Release\net8.0\asm_inspector.AssemblyInfo.cs
+C:\Projects\d20ultima\.tools\asm_inspector\obj\Release\net8.0\asm_inspector.csproj.CoreCompileInputs.cache
+C:\Projects\d20ultima\.tools\asm_inspector\obj\Release\net8.0\asm_inspector.sourcelink.json
+C:\Projects\d20ultima\.tools\asm_inspector\obj\Release\net8.0\asm_inspector.dll
+C:\Projects\d20ultima\.tools\asm_inspector\obj\Release\net8.0\refint\asm_inspector.dll
+C:\Projects\d20ultima\.tools\asm_inspector\obj\Release\net8.0\asm_inspector.pdb
+C:\Projects\d20ultima\.tools\asm_inspector\obj\Release\net8.0\asm_inspector.genruntimeconfig.cache
+C:\Projects\d20ultima\.tools\asm_inspector\obj\Release\net8.0\ref\asm_inspector.dll

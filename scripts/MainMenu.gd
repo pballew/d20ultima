@@ -318,7 +318,7 @@ func display_all_player_sprites():
 	DebugLogger.info("Displaying all player sprites on main menu...")
 	
 	# Load PlayerIconFactory
-	var factory_script = load("res://scripts/PlayerIconFactory.gd")
+	var factory_script = load("res://scripts/PlayerIconFactory.cs")
 	if not factory_script:
 		DebugLogger.info("Could not load PlayerIconFactory script")
 		return

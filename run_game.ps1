@@ -25,11 +25,8 @@ if ($GodotExePath -and (Test-Path $GodotExePath)) {
 } else {
     # Prefer the Mono console exe if present so .cs resources can be recognized during the check.
     $consoleCandidates = @(
-        './Godot_v4.4.1-stable_mono_win64_console.exe',
-        './Godot_v4.4.1-stable_mono_win64.exe',
-        './Godot_mono_console.exe',
-        './Godot_mono.exe',
-        './Godot_v4.4.1-stable_win64_console.exe'
+        './Godot_v4.5-stable_mono_win64_console.exe',
+        './Godot_v4.5-stable_mono_win64.exe'
     )
     foreach ($c in $consoleCandidates) {
         if (Test-Path $c) { $consoleExe = (Resolve-Path $c).Path; break }
@@ -70,10 +67,8 @@ if ($criticalErrors) {
     else {
     # Prefer a Mono-enabled Godot executable if available (64-bit names commonly used).
     $monoCandidates = @(
-        './Godot_v4.4.1-stable_mono_win64.exe',
-        './Godot_v4.4.1-stable_mono_win64_console.exe',
-        './Godot_mono.exe',
-        './Godot_mono_win64.exe'
+        './Godot_v4.5-stable_mono_win64.exe',
+        './Godot_v4.5-stable_mono_win64_console.exe'
     )
 
     $godotExePath = $null

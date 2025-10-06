@@ -1,8 +1,9 @@
 [gd_scene load_steps=9 format=3 uid="uid://bklpfbydogsrm"]
 
 [ext_resource type="Script" uid="uid://cjmgrfmympn3f" path="res://scripts/Main.gd" id="1_0h8yg"]
-[ext_resource type="Script" uid="uid://bc2gfswj72la6" path="res://scripts/PlayerSafe.gd" id="2_5xhyv"]
+[ext_resource type="Script" path="res://scripts/PlayerSafe.gd" id="2_5xhyv"]
 [ext_resource type="Script" uid="uid://brikxy6jr2vv2" path="res://scripts/CombatManager.gd" id="3_k3dmh"]
+[ext_resource type="Script" path="res://scripts/Player.cs" id="4_player_cs"]
  
 [ext_resource type="Script" path="res://scripts/EnhancedTerrain.gd" id="5_enhanced_terrain"]
 [ext_resource type="Script" path="res://scripts/FogOfWar.gd" id="9_fog_of_war"]
@@ -19,7 +20,7 @@ script = ExtResource("1_0h8yg")
 script = ExtResource("5_enhanced_terrain")
 
 [node name="Player" type="Node2D" parent="."]
-script = ExtResource("2_5xhyv")
+script = ExtResource("4_player_cs")
 
 [node name="Sprite2D" type="Sprite2D" parent="Player"]
 modulate = Color(0, 0.5, 1, 1)

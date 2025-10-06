@@ -35,9 +35,9 @@ func _ready():
         # Reveal initial area after a short delay to ensure player positioned
         await get_tree().process_frame
         reveal_around_position(player.global_position)
-        # Connect movement_finished if available
-        if player.has_signal("movement_finished"):
-            player.movement_finished.connect(_on_player_moved)
+        # Connect movement_finished if available (use connect by name to support C# user signals)
+        if player.has_signal("MovementFinishedEventHandler"):
+            player.connect("MovementFinishedEventHandler", Callable(self, "_on_player_moved"))
 
     set_process(false)  # Not needed every frame; we redraw only when needed
 
