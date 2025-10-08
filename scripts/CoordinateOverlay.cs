@@ -11,7 +11,40 @@ public partial class CoordinateOverlay : Control
     {
         _coordinateLabel = GetNodeOrNull<Label>("CoordinateLabel");
         // Try to find a Player node in the active scene (best-effort)
+        // First try the common absolute path (fast)
         _player = GetTree().Root.GetNodeOrNull<Node2D>("/root/GameController/Main/Game/Player");
+
+        // If not found, recursively search for a node named "Player"
+        if (_player == null)
+            _player = FindPlayer(GetTree().Root);
+
+        // Runtime fallback: ensure the label is placed at a visible top-left position
+        if (_coordinateLabel != null)
+        {
+            try {
+                // Pin label to top-left as a runtime fallback
+                _coordinateLabel.AnchorLeft = 0f;
+                _coordinateLabel.AnchorTop = 0f;
+                _coordinateLabel.AnchorRight = 0f;
+                _coordinateLabel.AnchorBottom = 0f;
+                _coordinateLabel.OffsetLeft = 8f;
+                _coordinateLabel.OffsetTop = 8f;
+            } catch { }
+        }
+    }
+
+    private Node2D FindPlayer(Node start)
+    {
+        foreach (var child in start.GetChildren())
+        {
+            if (child == null) continue;
+            if (child.Name == "Player" && child is Node2D asNode2D)
+                return asNode2D;
+            var found = FindPlayer(child);
+            if (found != null)
+                return found;
+        }
+        return null;
     }
 
     public override void _Process(double delta)

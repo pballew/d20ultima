@@ -76,3 +76,9 @@ dist/
 *.tmp
 *.bak
 *~
+
+# Ignore tool build outputs (local tool projects, build artifacts)
+# These prevent generated bin/ and obj/ artifacts under .tools from being committed
+.tools/**/bin/
+.tools/**/obj/
+.tools/**/publish/

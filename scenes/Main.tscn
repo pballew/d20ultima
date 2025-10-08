@@ -1,14 +1,12 @@
 [gd_scene load_steps=9 format=3 uid="uid://bklpfbydogsrm"]
 
-[ext_resource type="Script" uid="uid://cjmgrfmympn3f" path="res://scripts/Main.gd" id="1_0h8yg"]
-[ext_resource type="Script" path="res://scripts/PlayerSafe.gd" id="2_5xhyv"]
-[ext_resource type="Script" uid="uid://brikxy6jr2vv2" path="res://scripts/CombatManager.gd" id="3_k3dmh"]
-[ext_resource type="Script" path="res://scripts/Player.cs" id="4_player_cs"]
- 
-[ext_resource type="Script" path="res://scripts/EnhancedTerrain.gd" id="5_enhanced_terrain"]
-[ext_resource type="Script" path="res://scripts/FogOfWar.gd" id="9_fog_of_war"]
+[ext_resource type="Script" uid="uid://ctp40aapxlalv" path="res://scripts/Main.cs" id="1_0h8yg"]
+[ext_resource type="Script" uid="uid://d30er4q5oh017" path="res://scripts/CombatManager.cs" id="3_k3dmh"]
+[ext_resource type="Script" uid="uid://c4ybar3ybdf0g" path="res://scripts/Player.cs" id="4_player_cs"]
+[ext_resource type="Script" uid="uid://c74kmsa2rp7fy" path="res://scripts/EnhancedTerrain.cs" id="5_enhanced_terrain"]
 [ext_resource type="PackedScene" uid="uid://ckfj8w8hmxrq2" path="res://scenes/PlayerStatsUI.tscn" id="6_player_stats"]
 [ext_resource type="PackedScene" uid="uid://bp5rf1mwu3yxr" path="res://scenes/CoordinateOverlay.tscn" id="7_coordinate_overlay"]
+[ext_resource type="Script" uid="uid://ccyqih0h5yvra" path="res://scripts/FogOfWar.cs" id="9_fog_of_war"]
 
 [sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_1"]
 size = Vector2(32, 32)
@@ -24,9 +22,11 @@ script = ExtResource("4_player_cs")
 
 [node name="Sprite2D" type="Sprite2D" parent="Player"]
 modulate = Color(0, 0.5, 1, 1)
+position = Vector2(513, 387)
 texture = SubResource("PlaceholderTexture2D_1")
 
 [node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(512, 384)
 
 [node name="CombatManager" type="Node" parent="."]
 script = ExtResource("3_k3dmh")
@@ -39,6 +39,8 @@ script = ExtResource("9_fog_of_war")
 
 [node name="PlayerStatsUI" parent="UI" instance=ExtResource("6_player_stats")]
 
- 
-
 [node name="CoordinateOverlay" parent="UI" instance=ExtResource("7_coordinate_overlay")]
+offset_top = -1.0
+offset_bottom = -1.0
+grow_horizontal = 2
+grow_vertical = 2

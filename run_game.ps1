@@ -87,6 +87,26 @@ if ($criticalErrors) {
         exit 1
     }
 
+    # If dotnet is available, build the C# project before running the headless check.
+    try {
+        $dotnetVersion = & dotnet --version 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "dotnet found (version $dotnetVersion). Running 'dotnet build'..."
+            $buildOutput = & dotnet build 2>&1 | Tee-Object -Variable buildLog
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "dotnet build failed. See build output:" -ForegroundColor Red
+                $buildLog | ForEach-Object { Write-Host $_ }
+                exit 1
+            } else {
+                Write-Host "dotnet build succeeded." -ForegroundColor Green
+            }
+        } else {
+            Write-Host "dotnet not available; skipping C# build." -ForegroundColor Yellow
+        }
+    } catch {
+        Write-Host "dotnet not available; skipping C# build." -ForegroundColor Yellow
+    }
+
     # Print whether dotnet SDK is available (helpful for Mono builds)
     try {
         $dotnetInfo = & dotnet --info 2>$null

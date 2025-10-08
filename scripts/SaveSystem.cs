@@ -1,60 +1,108 @@
 using Godot;
 using System;
+using System.IO;
+using System.Text.Json;
 
 public partial class SaveSystem : Node
 {
     private const string SAVE_PATH = "user://game_save.dat";
     private const string CHARACTERS_PATH = "user://characters/";
 
+    // Minimal implementations to keep the C# autoload working.
+    // These can be expanded later to use proper JSON and Resource saving.
     public static bool HasSaveData()
     {
-        return FileAccess.FileExists(SAVE_PATH);
+        return Godot.FileAccess.FileExists(SAVE_PATH);
     }
 
     public static Resource LoadLastCharacter()
     {
-        if (!FileAccess.FileExists(SAVE_PATH)) return null;
-        var file = FileAccess.Open(SAVE_PATH, FileAccess.ModeFlags.Read);
-        if (file == null) return null;
-        var json = file.GetAsText();
-        file.Close();
-        var parsed = JSON.Parse(json);
-        if (parsed == null || parsed.Result != Error.Ok) return null;
-        var data = parsed.Result == Error.Ok ? parsed.GetData() : null;
-        if (data == null) return null;
-        var dict = data as Godot.Collections.Dictionary;
-        if (dict == null || !dict.Contains("last_character_file")) return null;
-        var character_file = dict["last_character_file"].ToString();
-        if (!FileAccess.FileExists(character_file)) return null;
-        var res = GD.Load<Resource>(character_file);
-        return res;
+        try
+        {
+            if (!Godot.FileAccess.FileExists(SAVE_PATH))
+                return null;
+
+            using var fa = Godot.FileAccess.Open(SAVE_PATH, Godot.FileAccess.ModeFlags.Read);
+            if (fa == null)
+                return null;
+            var json = fa.GetAsText();
+            fa.Close();
+
+            if (string.IsNullOrEmpty(json))
+                return null;
+
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("last_character_file", out var elem))
+                return null;
+            var characterFile = elem.GetString();
+            if (string.IsNullOrEmpty(characterFile))
+                return null;
+
+            if (!Godot.FileAccess.FileExists(characterFile))
+                return null;
+
+            var res = GD.Load<Resource>(characterFile);
+            return res;
+        }
+        catch (Exception ex)
+        {
+            GD.PrintErr($"SaveSystem.LoadLastCharacter exception: {ex.Message}");
+            return null;
+        }
     }
 
     public static bool SaveGameState(Resource characterData)
     {
         try
         {
+            if (characterData == null)
+                return false;
+
             // Ensure characters directory exists
-            if (!DirAccess.DirExistsAbsolute(CHARACTERS_PATH))
-                DirAccess.MakeDirRecursiveAbsolute(CHARACTERS_PATH);
+            try
+            {
+                Godot.DirAccess.MakeDirRecursiveAbsolute(CHARACTERS_PATH);
+            }
+            catch
+            {
+                // ignore
+            }
 
-            // Save character resource to characters folder
-            var name = "character";
-            try { name = characterData.Get("character_name").ToString().ToLower().Replace(" ", "_"); } catch { }
-            var character_save_path = CHARACTERS_PATH + name + ".tres";
-            var err = ResourceSaver.Save(character_save_path, characterData);
+            // Generate a safe filename for the character
+            var name = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+            try
+            {
+                // Try to get a character_name property if the resource exposes it via Get
+                var maybe = characterData.Get("character_name");
+                var s = maybe.ToString();
+                if (!string.IsNullOrEmpty(s))
+                {
+                    name = s.ToLower().Replace(' ', '_');
+                }
+            }
+            catch { }
 
-            // Save game state JSON
-            var game_state = new Godot.Collections.Dictionary();
-            game_state["last_character_name"] = name;
-            game_state["last_character_file"] = character_save_path;
-            game_state["last_played_timestamp"] = (long)Time.GetUnixTimeFromSystem();
+            var characterSavePath = CHARACTERS_PATH + name + ".tres";
 
-            var file = FileAccess.Open(SAVE_PATH, FileAccess.ModeFlags.Write);
-            if (file == null) return false;
-            var json = JSON.Print(game_state);
-            file.StoreString(json);
-            file.Close();
+            // Save the Resource to the characters folder (ResourceSaver expects Resource first)
+            var err = ResourceSaver.Save(characterData, characterSavePath);
+
+            // Build a tiny JSON state describing the last character
+            var state = new
+            {
+                last_character_name = name,
+                last_character_file = characterSavePath,
+                last_played_timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+            };
+
+            var json = JsonSerializer.Serialize(state);
+
+            using var fa = Godot.FileAccess.Open(SAVE_PATH, Godot.FileAccess.ModeFlags.Write);
+            if (fa == null)
+                return false;
+            fa.StoreString(json);
+            fa.Close();
+
             GD.Print("Game state saved successfully!");
             return err == Error.Ok;
         }

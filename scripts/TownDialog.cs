@@ -52,13 +52,14 @@ public partial class TownDialog : Control
         {
             try {
                 if (parent.HasMethod("_on_town_entered")){
-                    var r = Connect("town_entered", parent, "_on_town_entered");
+                    // Use Callable overload to match C# API
+                    var r = Connect("town_entered", new Callable(parent, "_on_town_entered"));
                     logger?.Info($"DEBUG TownDialog: Connected town_entered to parent, result={r}");
                 }
             } catch (Exception ex){ logger?.Warn("DEBUG TownDialog: connect town_entered failed: " + ex.Message); }
             try {
                 if (parent.HasMethod("_on_town_dialog_cancelled")){
-                    var r2 = Connect("dialog_cancelled", parent, "_on_town_dialog_cancelled");
+                    var r2 = Connect("dialog_cancelled", new Callable(parent, "_on_town_dialog_cancelled"));
                     logger?.Info($"DEBUG TownDialog: Connected dialog_cancelled to parent, result={r2}");
                 }
             } catch (Exception ex){ logger?.Warn("DEBUG TownDialog: connect dialog_cancelled failed: " + ex.Message); }
@@ -127,8 +128,12 @@ public partial class TownDialog : Control
     public override void _EnterTree()
     {
         // Ensure the expected GDScript-style signal names exist for runtime connections
-        AddUserSignal("town_entered", new Godot.Collections.Array());
-        AddUserSignal("dialog_cancelled", new Godot.Collections.Array());
+        try {
+            if (!HasSignal("town_entered"))
+                AddUserSignal("town_entered", new Godot.Collections.Array());
+            if (!HasSignal("dialog_cancelled"))
+                AddUserSignal("dialog_cancelled", new Godot.Collections.Array());
+        } catch { }
     }
 
     // Compatibility proxies so GDScript can access `town_dialog.town_entered.connect(...)`
@@ -150,7 +155,7 @@ public partial class TownDialog : Control
     }
 
     // Small helper type exposed to GDScript to mimic the GDScript `object.signal` API
-    public class SignalProxy : Reference
+    public partial class SignalProxy : RefCounted
     {
         private Node _owner;
         private string _signalName;
@@ -164,8 +169,8 @@ public partial class TownDialog : Control
                 _owner.Connect(_signalName, c);
                 return;
             }
-            // If a GDScript passed a function, it should come through as a Callable; try best-effort
-            try { _owner.Connect(_signalName, new Callable(callable)); } catch { }
+            // Best-effort: other callable representations are not handled explicitly here.
+            // GDScript usually passes a Callable; if not, ignore gracefully.
         }
 
         // Overload for target + method name
@@ -173,7 +178,9 @@ public partial class TownDialog : Control
         {
             if (target != null && !string.IsNullOrEmpty(method))
             {
-                _owner.Connect(_signalName, target, method);
+                try {
+                    _owner.Connect(_signalName, new Callable(target, method));
+                } catch { }
             }
         }
     }

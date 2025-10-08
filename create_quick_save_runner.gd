@@ -1,6 +1,6 @@
 extends Node
 
-const CharacterData = preload("res://scripts/CharacterData.gd")
+const CharacterData = preload("res://scripts/CharacterData.cs")
 
 func _ready():
 	DebugLogger.info("Creating quick save character...")

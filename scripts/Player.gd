@@ -1,3 +1,34 @@
+// Player.gd disabled — Player.cs is authoritative in this project.
+class_name Player
+extends Character
+
+# Minimal GDScript stub kept only to avoid parse errors while C# port is primary.
+@export var movement_speed: float = 200.0
+
+signal movement_finished
+signal encounter_started
+signal camping_started
+signal town_name_display(town_name: String)
+
+var _target_position: Vector2
+var _is_moving: bool = false
+var _is_in_combat: bool = false
+
+func _ready() -> void:
+    # Ensure member is initialized
+    _target_position = global_position
+
+func move_to_tile(new_pos: Vector2) -> void:
+    _target_position = new_pos
+    _is_moving = true
+
+func _physics_process(delta: float) -> void:
+    if _is_moving:
+        global_position = global_position.move_toward(_target_position, movement_speed * delta)
+        if global_position.distance_to(_target_position) < 1.0:
+            global_position = _target_position
+            _is_moving = false
+            emit_signal("movement_finished")
 class_name Player
 extends Character
 

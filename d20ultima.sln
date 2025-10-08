@@ -1,0 +1,35 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "d20ultima", "d20ultima.csproj", "{63A44678-7A1A-54BD-BE2C-6EB5DF11DF5F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".tools", ".tools", "{705DFA22-7184-1430-7B39-E46DCDFAC9FB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "asm_inspector", ".tools\asm_inspector\asm_inspector.csproj", "{08F22038-8F00-ADCA-D538-53AE0CCC9724}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{63A44678-7A1A-54BD-BE2C-6EB5DF11DF5F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{63A44678-7A1A-54BD-BE2C-6EB5DF11DF5F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{63A44678-7A1A-54BD-BE2C-6EB5DF11DF5F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{63A44678-7A1A-54BD-BE2C-6EB5DF11DF5F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{08F22038-8F00-ADCA-D538-53AE0CCC9724}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{08F22038-8F00-ADCA-D538-53AE0CCC9724}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{08F22038-8F00-ADCA-D538-53AE0CCC9724}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{08F22038-8F00-ADCA-D538-53AE0CCC9724}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{08F22038-8F00-ADCA-D538-53AE0CCC9724} = {705DFA22-7184-1430-7B39-E46DCDFAC9FB}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {67DC4BA3-35D1-4F6E-83E4-9F82356AEDB1}
+	EndGlobalSection
+EndGlobal

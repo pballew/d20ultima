@@ -57,8 +57,8 @@ public partial class Main : Node2D
             }
         }
 
-    // Wait one frame to allow terrain to initialize; schedule deferred init
-    GetTree().CallDeferred(nameof(Deferred_Init));
+    // Wait one frame to allow terrain to initialize; schedule deferred init on this node
+    CallDeferred(nameof(Deferred_Init));
     }
 
     private void Deferred_Init()
@@ -214,12 +214,19 @@ public partial class Main : Node2D
     private Monster CreateRandomEnemy(string difficultyModifier)
     {
         // Create a minimal monster instance and add to scene
-        var monster = (Monster)GD.Load<PackedScene>("res://scenes/Monster.tscn")?.Instantiate();
+        Monster monster = null;
+        try {
+            // Only try to load the scene if it exists on disk
+            if (FileAccess.FileExists("res://scenes/Monster.tscn"))
+            {
+                var loaded = GD.Load<PackedScene>("res://scenes/Monster.tscn");
+                monster = (Monster)loaded?.Instantiate();
+            }
+        } catch { }
         if (monster == null)
         {
             // fallback: instantiate script
-            var m = new Monster();
-            monster = m;
+            monster = new Monster();
         }
 
         monster.Name = "Goblin";

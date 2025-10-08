@@ -20,7 +20,7 @@
   <!-- scripts/Main.cs re-enabled -->
     <Compile Remove="scripts/MainController.cs" />
   <!-- scripts/Monster.cs re-enabled -->
-    <Compile Remove="scripts/SaveSystem.cs" />
+  <!-- SaveSystem.cs should be compiled so the autoload scene can instantiate the C# node -->
     <Compile Remove="scripts/TerrainMap.cs" />
     <Compile Remove="scripts/Player_complex_backup.cs" />
     <Compile Remove="scripts/Player_simple.cs" />

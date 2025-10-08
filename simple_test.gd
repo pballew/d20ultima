@@ -1,6 +1,6 @@
 extends SceneTree
 
-const CharacterData = preload("res://scripts/CharacterData.gd")
+const CharacterData = preload("res://scripts/CharacterData.cs")
 
 func _ready():
     DebugLogger.info("=== SIMPLE HIT DICE TEST ===")

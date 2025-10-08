@@ -13,13 +13,13 @@ config_version=5
 config/name="Ultima-Style RPG"
 config/description="A turn-based RPG inspired by Ultima with D20 system rules"
 run/main_scene="res://scenes/GameController.tscn"
-config/features=PackedStringArray("4.5", "Forward Plus")
+config/features=PackedStringArray("4.5", "C#", "Forward Plus")
 config/icon="res://icon.svg"
 
 [autoload]
 
 DebugLogger="*res://scripts/DebugLogger.cs"
-SaveSystem="*res://scripts/SaveSystem.gd"
+SaveSystem="*res://scripts/SaveSystem.tscn"
 
 [display]
 

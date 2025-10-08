@@ -73,11 +73,9 @@ public partial class SpriteManager : Node
 
     public Sprite2D render_to_sprite(Sprite2D sprite_node, string category = "other", string name = "", Vector2 target_size = default, Color? modulate = null, bool centered = true)
     {
-        var created = false;
         if (sprite_node == null)
         {
             sprite_node = new Sprite2D();
-            created = true;
         }
         var tex = get_scaled_texture(category, name, target_size == default ? Vector2.Zero : target_size);
         if (tex == null) tex = _placeholder_texture;
@@ -100,7 +98,7 @@ public partial class SpriteManager : Node
 
     private Texture2D _create_placeholder()
     {
-    var img = Image.Create(8,8,false,Image.Format.Rgba8);
+    var img = Image.CreateEmpty(8,8,false,Image.Format.Rgba8);
         for (int y=0;y<img.GetHeight();y++)
             for (int x=0;x<img.GetWidth();x++)
                 img.SetPixel(x,y, ((x+y)%2)==0 ? new Color(1,0,1,1) : new Color(0,0,0,1));
