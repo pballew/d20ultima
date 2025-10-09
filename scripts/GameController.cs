@@ -6,6 +6,8 @@ public partial class GameController : Control
     private Control main_menu;
     private Control game_scene;
     private Node town_dialog;
+    private PackedScene _characterCreationScene;
+    private Control _characterCreationInstance;
     private Resource currentCharacter;
     private AcceptDialog quitConfirmationDialog;
     private bool q_saves_to_menu = true;
@@ -59,6 +61,24 @@ public partial class GameController : Control
             // Keep game_scene hidden until start
             if (game_scene != null) game_scene.Visible = false;
         }
+
+        // Prepare CharacterCreation packed scene but do not instance it yet
+        try
+        {
+            _characterCreationScene = GD.Load<PackedScene>("res://scenes/CharacterCreation.tscn");
+        }
+        catch { _characterCreationScene = null; }
+
+        // Connect MainMenu's NewCharacterButton (if present) to show the character creation UI
+        try
+        {
+            var newBtn = main_menu?.GetNodeOrNull<Button>("VBoxContainer/NewCharacterButton");
+            if (newBtn != null)
+            {
+                newBtn.Pressed += () => { ShowCharacterCreation(); };
+            }
+        }
+        catch { }
 
         // Disable camera while in menu if exists
     var playerCamera = GetNodeOrNull<Camera2D>("GameScene/Camera2D");
@@ -131,6 +151,42 @@ public partial class GameController : Control
 
     if (game_scene != null && game_scene is Control gsc) gsc.Visible = true;
         GD.Print("Game started (C#): " + (character_data != null ? character_data.Get("character_name").ToString() : "Unknown"));
+    }
+
+    public void ShowCharacterCreation()
+    {
+        if (_characterCreationInstance != null)
+            return; // already shown
+
+        if (_characterCreationScene == null)
+        {
+            GD.PrintErr("CharacterCreation scene not found");
+            return;
+        }
+
+        var inst = _characterCreationScene.Instantiate();
+        if (inst is Control ctrl)
+        {
+            AddChild(ctrl);
+            _characterCreationInstance = ctrl;
+            // Ensure it fills the parent
+            try {
+                ctrl.AnchorLeft = 0f; ctrl.AnchorTop = 0f; ctrl.AnchorRight = 1f; ctrl.AnchorBottom = 1f;
+                ctrl.OffsetLeft = 0f; ctrl.OffsetTop = 0f; ctrl.OffsetRight = 0f; ctrl.OffsetBottom = 0f;
+            } catch { }
+            // hide main menu while creating
+            if (main_menu != null) main_menu.Visible = false;
+        }
+    }
+
+    public void HideCharacterCreation()
+    {
+        if (_characterCreationInstance != null)
+        {
+            _characterCreationInstance.QueueFree();
+            _characterCreationInstance = null;
+            if (main_menu != null) main_menu.Visible = true;
+        }
     }
 
     // GDScript-compatible snake_case wrapper so calls from GDScript still work

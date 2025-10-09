@@ -76,8 +76,7 @@ text = "Show Map"
 custom_minimum_size = Vector2(160, 0)
 size_flags_horizontal = 4
 
-[node name="CharacterCreation" parent="." instance=ExtResource("2_char_creation")]
-visible = false
+
 
 [node name="MapPanel" parent="." instance=ExtResource("3_map_panel")]
 visible = false

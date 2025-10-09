@@ -66,8 +66,21 @@ public partial class Main : Node2D
         EnsurePlayerSafeStartingPosition();
         if (player != null && camera != null)
         {
-            camera.GlobalPosition = player.GlobalPosition;
-            // If player supports set_camera_target
+            // Move the player to the center of the screen (world coordinates).
+            Vector2 centerWorld;
+            try
+            {
+                centerWorld = camera.GetScreenCenterPosition();
+            }
+            catch
+            {
+                var vp = GetViewport();
+                centerWorld = vp != null ? vp.GetVisibleRect().Size / 2f : new Vector2(0, 0);
+            }
+
+            player.GlobalPosition = centerWorld;
+
+            // If player supports set_camera_target, inform it of the new position
             if (player.HasMethod("set_camera_target"))
                 player.Call("set_camera_target", player.GlobalPosition);
         }
