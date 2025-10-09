@@ -80,9 +80,18 @@ public partial class GameController : Control
         }
         catch { }
 
-        // Disable camera while in menu if exists
+        // Ensure the game camera is NOT current while the main menu is showing.
+        // Calling MakeCurrent here can cause the viewport to jump if the camera
+        // is positioned for gameplay. Use Current = false to be explicit.
     var playerCamera = GetNodeOrNull<Camera2D>("GameScene/Camera2D");
-    if (playerCamera != null) playerCamera.MakeCurrent();
+    if (playerCamera != null)
+    {
+        // Intentionally do nothing here: avoid forcing the camera to become
+        // current while the main menu is visible. Calling MakeCurrent() here
+        // would make the game camera active immediately and may jump the view.
+        // No-op is safer; the camera will be activated when the game actually
+        // starts in _OnStartGame.
+    }
 
         // Hide player stats UI while in menu
         var playerStatsUI = GetNodeOrNull<Control>("GameScene/UI/PlayerStatsUI");

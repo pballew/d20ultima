@@ -78,11 +78,16 @@ public partial class Main : Node2D
                 centerWorld = vp != null ? vp.GetVisibleRect().Size / 2f : new Vector2(0, 0);
             }
 
-            player.GlobalPosition = centerWorld;
-
-            // If player supports set_camera_target, inform it of the new position
-            if (player.HasMethod("set_camera_target"))
-                player.Call("set_camera_target", player.GlobalPosition);
+            // Do NOT force-move the player to the screen center (this can cause
+            // unexpected world offsets). Instead, ensure the camera is centered
+            // on the player's current position so the viewport is still focused
+            // correctly without teleporting the player.
+            if (player is Node2D p2d)
+            {
+                try { camera.GlobalPosition = p2d.GlobalPosition; } catch { }
+                if (player.HasMethod("set_camera_target"))
+                    player.Call("set_camera_target", p2d.GlobalPosition);
+            }
         }
 
         GD.Print("Game scene ready!");

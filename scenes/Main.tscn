@@ -19,10 +19,11 @@ script = ExtResource("5_enhanced_terrain")
 
 [node name="Player" type="Node2D" parent="."]
 script = ExtResource("4_player_cs")
+position = Vector2(513, 387)
 
 [node name="Sprite2D" type="Sprite2D" parent="Player"]
 modulate = Color(0, 0.5, 1, 1)
-position = Vector2(513, 387)
+position = Vector2(0, 0)
 texture = SubResource("PlaceholderTexture2D_1")
 
 [node name="Camera2D" type="Camera2D" parent="."]
