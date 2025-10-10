@@ -93,8 +93,8 @@ public partial class GameController : Control
         // starts in _OnStartGame.
     }
 
-        // Hide player stats UI while in menu
-        var playerStatsUI = GetNodeOrNull<Control>("GameScene/UI/PlayerStatsUI");
+    // Hide player stats UI while in menu
+    var playerStatsUI = GetNodeOrNull<Control>("GameScene/UI/PlayerStatsUI");
     if (playerStatsUI != null) playerStatsUI.Visible = false;
 
         // Show menu by default

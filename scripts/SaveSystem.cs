@@ -117,4 +117,53 @@ public partial class SaveSystem : Node
     public static bool has_save_data() => HasSaveData();
     public static Resource load_last_character() => LoadLastCharacter();
     public static bool save_game_state(Resource characterData) => SaveGameState(characterData);
+
+    // Return list of character files under user://characters/ (full paths)
+    public static Godot.Collections.Array ListSavedCharacters()
+    {
+        var arr = new Godot.Collections.Array();
+        try
+        {
+            // Try to open the user://characters directory directly. Avoid DirExistsAbsolute
+            // since user:// is a virtual path and may not be treated as an absolute path.
+            using var da = Godot.DirAccess.Open(CHARACTERS_PATH);
+            if (da == null)
+            {
+                GD.Print($"SaveSystem: no characters dir at {CHARACTERS_PATH}");
+                return arr;
+            }
+            da.ListDirBegin();
+            while (true)
+            {
+                string fname = da.GetNext();
+                if (string.IsNullOrEmpty(fname))
+                    break;
+                if (fname == "." || fname == "..") continue;
+                GD.Print($"SaveSystem: found entry in characters: '{fname}'");
+                // If there's a stray file that's just ".tres" (no name), delete it as it may be corrupt
+                if (string.Equals(fname, ".tres", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        GD.Print($"SaveSystem: removing stray file {CHARACTERS_PATH + fname}");
+                        using var remover = Godot.DirAccess.Open("user://");
+                        if (remover != null)
+                        {
+                            try { remover.Remove("characters/" + fname); } catch (Exception rex) { GD.PrintErr($"SaveSystem: remover.Remove failed: {rex.Message}"); }
+                        }
+                    }
+                    catch (Exception ex) { GD.PrintErr($"SaveSystem: failed to remove stray .tres: {ex.Message}"); }
+                    continue;
+                }
+                if (fname.EndsWith(".tres", StringComparison.OrdinalIgnoreCase))
+                {
+                    arr.Add(CHARACTERS_PATH + fname);
+                }
+            }
+            da.ListDirEnd();
+            GD.Print($"SaveSystem: found {arr.Count} character files in {CHARACTERS_PATH}");
+        }
+        catch { }
+        return arr;
+    }
 }

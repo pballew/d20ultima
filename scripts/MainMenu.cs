@@ -54,20 +54,51 @@ public partial class MainMenu : Control
         {
             _loadButton.Pressed += () =>
             {
-                InvokeOnController((controller) =>
+                // Find controller now and present a FileDialog listing user://characters/*.tres
+                var controller = FindController();
+                if (controller == null)
                 {
-                    var last = SaveSystem.LoadLastCharacter();
-                    if (last != null)
-                        controller._OnStartGame(last);
-                    else
-                        GD.Print("MainMenu: No saved character to load");
-                }, "MainMenu: GameController not found when pressing LoadCharacter");
+                    GD.PrintErr("MainMenu: GameController not found when pressing LoadCharacter");
+                    return;
+                }
+
+                // Instantiate our custom in-game popup to list saved characters
+                // Instantiate the popup via its class to ensure the C# script is attached
+                try
+                {
+                    var popup = new LoadCharacterPopup();
+                    AddChild(popup);
+                    popup.Connect("character_selected", new Callable(this, nameof(OnPopupCharacterSelected)));
+                    popup.PopupCentered();
+                }
+                catch (Exception ex)
+                {
+                    GD.PrintErr("MainMenu: failed to create LoadCharacterPopup: " + ex.Message);
+                }
             };
         }
 
         if (_quitButton != null)
         {
             _quitButton.Pressed += () => { GetTree().Quit(); };
+        }
+    }
+
+    private void OnPopupCharacterSelected(Resource character)
+    {
+        var controller = FindController();
+        if (controller == null)
+        {
+            GD.PrintErr("MainMenu: GameController not found when popup selected character");
+            return;
+        }
+        try
+        {
+            controller._OnStartGame(character);
+        }
+        catch (Exception ex)
+        {
+            GD.PrintErr("MainMenu: exception starting game from popup: " + ex.Message);
         }
     }
 

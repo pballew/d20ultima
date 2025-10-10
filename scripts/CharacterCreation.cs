@@ -29,6 +29,13 @@ public partial class CharacterCreation : Control
 
     public override void _Ready()
     {
+        // Expose GDScript-style snake_case signals so other GDScript code
+        // can connect to `character_created` and `character_loaded` like before.
+        try {
+            if (!HasSignal("character_created")) AddUserSignal("character_created", new Godot.Collections.Array());
+            if (!HasSignal("character_loaded")) AddUserSignal("character_loaded", new Godot.Collections.Array());
+        } catch { }
+
         // Cache UI nodes
         nameInput = GetNodeOrNull<LineEdit>("VBoxContainer/NameContainer/NameLineEdit");
         classOption = GetNodeOrNull<OptionButton>("VBoxContainer/ClassContainer/ClassOptionButton");
