@@ -207,21 +207,41 @@ public partial class GameController : Control
         GD.Print("Checking for save data...");
         try
         {
-            if (SaveSystem.HasSaveData())
-            {
-                GD.Print("Save data found, attempting to load last character...");
-                var last = SaveSystem.LoadLastCharacter();
-                if (last != null)
+            var saveSystem = GetNodeOrNull<Node>("/root/SaveSystem");
+                if (saveSystem != null)
                 {
-                    GD.Print("Auto-loading last character");
-                    _OnStartGame(last);
-                    return;
+                    bool has = false;
+                    try { has = (bool)saveSystem.Call("has_save_data"); } catch { has = false; }
+                    if (has)
+                    {
+                        GD.Print("Save data found, attempting to load last character...");
+                        try
+                        {
+                            var lastFile = string.Empty;
+                            try { lastFile = (string)saveSystem.Call("get_last_character_file"); } catch { lastFile = string.Empty; }
+                            if (!string.IsNullOrEmpty(lastFile))
+                            {
+                                Resource lastRes = null;
+                                try { lastRes = GD.Load<Resource>(lastFile); } catch { lastRes = null; }
+                                if (lastRes != null)
+                                {
+                                    GD.Print("Auto-loading last character");
+                                    _OnStartGame(lastRes);
+                                    return;
+                                }
+                                else
+                                {
+                                    GD.PrintErr("Failed to load character data from file: " + lastFile);
+                                }
+                            }
+                        }
+                        catch (Exception) { GD.PrintErr("Failed to call get_last_character_file on SaveSystem"); }
+                    }
+                    else
+                    {
+                        GD.Print("No save data found");
+                    }
                 }
-                else
-                {
-                    GD.PrintErr("Failed to load character data!");
-                }
-            }
             else
             {
                 GD.Print("No save data found");
@@ -274,7 +294,12 @@ public partial class GameController : Control
                 var cd = new CharacterData();
                 if (dict.ContainsKey("character_name")) cd.Set("character_name", dict["character_name"]);
                 if (dict.ContainsKey("position")) cd.Set("world_position", dict["position"]);
-                try { SaveSystem.SaveGameState(cd); } catch { }
+                    try
+                    {
+                        var saveSystem = GetNodeOrNull<Node>("/root/SaveSystem");
+                        if (saveSystem != null) saveSystem.Call("save_game_state", cd);
+                    }
+                    catch { }
             }
         }
 
@@ -304,7 +329,12 @@ public partial class GameController : Control
                 if (dict.ContainsKey("character_name")) cd.Set("character_name", dict["character_name"]);
                 if (dict.ContainsKey("position")) cd.Set("world_position", dict["position"]);
                 try {
-                    var ok = SaveSystem.SaveGameState(cd);
+                    var saveSystem = GetNodeOrNull<Node>("/root/SaveSystem");
+                    var ok = false;
+                    if (saveSystem != null)
+                    {
+                        try { ok = (bool)saveSystem.Call("save_game_state", cd); } catch { ok = false; }
+                    }
                     if (ok) GD.Print("Game saved successfully!"); else GD.PrintErr("Failed to save game!");
                 } catch { }
             }
@@ -383,7 +413,13 @@ public partial class GameController : Control
                                 var cd = new CharacterData();
                                 if (dict.ContainsKey("character_name")) cd.Set("character_name", dict["character_name"]);
                                 if (dict.ContainsKey("position")) cd.Set("world_position", dict["position"]);
-                                try { SaveSystem.SaveGameState(cd); GD.Print("Q pressed: game saved, quitting application"); } catch { GD.Print("Q pressed: save attempt failed"); }
+                                    try
+                                    {
+                                        var saveSystem = GetNodeOrNull<Node>("/root/SaveSystem");
+                                        if (saveSystem != null) saveSystem.Call("save_game_state", cd);
+                                        GD.Print("Q pressed: game saved, quitting application");
+                                    }
+                                    catch { GD.Print("Q pressed: save attempt failed"); }
                             }
                             else
                             {

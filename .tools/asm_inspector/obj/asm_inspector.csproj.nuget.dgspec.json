@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Projects\\d20ultima\\.tools\\asm_inspector\\asm_inspector.csproj": {}
+    "c:\\Projects\\d20ultima\\.tools\\asm_inspector\\asm_inspector.csproj": {}
   },
   "projects": {
-    "C:\\Projects\\d20ultima\\.tools\\asm_inspector\\asm_inspector.csproj": {
+    "c:\\Projects\\d20ultima\\.tools\\asm_inspector\\asm_inspector.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Projects\\d20ultima\\.tools\\asm_inspector\\asm_inspector.csproj",
+        "projectUniqueName": "c:\\Projects\\d20ultima\\.tools\\asm_inspector\\asm_inspector.csproj",
         "projectName": "asm_inspector",
-        "projectPath": "C:\\Projects\\d20ultima\\.tools\\asm_inspector\\asm_inspector.csproj",
+        "projectPath": "c:\\Projects\\d20ultima\\.tools\\asm_inspector\\asm_inspector.csproj",
         "packagesPath": "C:\\Users\\Paul Ballew\\.nuget\\packages\\",
-        "outputPath": "C:\\Projects\\d20ultima\\.tools\\asm_inspector\\obj\\",
+        "outputPath": "c:\\Projects\\d20ultima\\.tools\\asm_inspector\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
