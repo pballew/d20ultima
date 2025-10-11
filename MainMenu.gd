@@ -2,7 +2,7 @@ extends Control
 
 signal start_game(character_data: CharacterData)
 
-const CharacterData = preload("res://scripts/CharacterData.gd")
+const CharacterData = preload("res://scripts/CharacterData.cs")
 
 @onready var title_label = $CenterContainer/VBoxContainer/TitleLabel
 @onready var continue_btn = $CenterContainer/VBoxContainer/ContinueButton

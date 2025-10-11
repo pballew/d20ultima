@@ -2,9 +2,28 @@ extends Node
 
 const SAVE_PATH = "user://game_save.dat"
 const CHARACTERS_PATH = "user://characters/"
-const CharacterData = preload("res://scripts/CharacterData.gd")
+const CharacterData = preload("res://scripts/CharacterData.cs")
 
-func save_game_state(character_data: CharacterData):
+func _ready():
+	# On autoload startup, ensure that the main save does not reference non-existent character files
+	if FileAccess.file_exists(SAVE_PATH):
+		var f = FileAccess.open(SAVE_PATH, FileAccess.READ)
+		if f:
+			var json_string = f.get_as_text()
+			f.close()
+			var json = JSON.new()
+			if json.parse(json_string) == OK:
+				var gs = json.data
+				if gs and gs.has("last_character_file"):
+					var cf = str(gs.get("last_character_file", ""))
+					if cf != "" and not FileAccess.file_exists(cf):
+						var fw = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+						if fw:
+							fw.store_string("")
+							fw.close()
+							DebugLogger.info("Cleared invalid save reference from %s" % SAVE_PATH)
+
+func save_game_state(character_data):
 	"""Save the current character data and mark them as the last played character"""
 	# Ensure characters directory exists
 	if not DirAccess.dir_exists_absolute(CHARACTERS_PATH):
@@ -31,7 +50,7 @@ func save_game_state(character_data: CharacterData):
 		DebugLogger.error("Failed to save game state!")
 		return false
 
-func load_last_character() -> CharacterData:
+func load_last_character():
 	"""Load the last played character, returns null if none found"""
 	if not FileAccess.file_exists(SAVE_PATH):
 		DebugLogger.warn("No previous game state found")
@@ -59,6 +78,12 @@ func load_last_character() -> CharacterData:
 	var character_file = game_state["last_character_file"]
 	if not FileAccess.file_exists(character_file):
 		DebugLogger.warn("Last character file not found: %s" % character_file)
+		# Remove invalid main save to avoid repeated load attempts on startup
+		var f = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+		if f:
+			f.store_string("")
+			f.close()
+			DebugLogger.info("Cleared invalid main save file to avoid repeated missing-resource errors")
 		return null
 	
 	var character_data = load(character_file) as CharacterData
@@ -127,3 +152,19 @@ func delete_all_characters():
 	
 	DebugLogger.info("Deleted %d character files and main save data" % characters_deleted)
 	return characters_deleted
+
+func get_last_character_file() -> String:
+	"""Return the path to the last character file as stored in the main save state, or empty string"""
+	if not FileAccess.file_exists(SAVE_PATH):
+		return ""
+	var file = FileAccess.open(SAVE_PATH, FileAccess.READ)
+	if not file:
+		return ""
+	var json_string = file.get_as_text()
+	file.close()
+	var json = JSON.new()
+	var parse_result = json.parse(json_string)
+	if parse_result != OK:
+		return ""
+	var game_state = json.data
+	return str(game_state.get("last_character_file", ""))

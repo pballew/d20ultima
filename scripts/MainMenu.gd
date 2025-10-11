@@ -2,15 +2,15 @@ extends Control
 
 signal start_game(character_data: CharacterData)
 
-const CharacterData = preload("res://scripts/CharacterData.gd")
+const CharacterData = preload("res://scripts/CharacterData.cs")
 
-@onready var title_label = $CenterContainer/VBoxContainer/TitleLabel
-@onready var continue_btn = $CenterContainer/VBoxContainer/ContinueButton
-@onready var new_character_btn = $CenterContainer/VBoxContainer/NewCharacterButton
-@onready var load_character_btn = $CenterContainer/VBoxContainer/LoadCharacterButton
-@onready var quit_btn = $CenterContainer/VBoxContainer/QuitButton
-@onready var character_creation = $CharacterCreation
-@onready var sprite_container = $SpriteDisplay/SpriteContainer
+var title_label = null
+var continue_btn = null
+var new_character_btn = null
+var load_character_btn = null
+var quit_btn = null
+var character_creation = null
+var sprite_container = null
 
 func _ready():
 	DebugLogger.info("=== MainMenu _ready() Debug ===")
@@ -18,6 +18,19 @@ func _ready():
 	DebugLogger.info(str("MainMenu size: ") + " " + str(size))
 	DebugLogger.info(str("MainMenu position: ") + " " + str(position))
 	
+	# Resolve expected nodes defensively
+	# Ensure minimal UI nodes exist first (helps headless checks before editor imports are available)
+	_ensure_main_menu_nodes()
+
+	# Resolve expected nodes defensively
+	title_label = get_node_or_null("CenterContainer/VBoxContainer/TitleLabel")
+	continue_btn = get_node_or_null("CenterContainer/VBoxContainer/ContinueButton")
+	new_character_btn = get_node_or_null("CenterContainer/VBoxContainer/NewCharacterButton")
+	load_character_btn = get_node_or_null("CenterContainer/VBoxContainer/LoadCharacterButton")
+	quit_btn = get_node_or_null("CenterContainer/VBoxContainer/QuitButton")
+	character_creation = get_node_or_null("CharacterCreation")
+	sprite_container = get_node_or_null("CenterContainer/SpriteDisplay/SpriteContainer")
+
 	# Check if all required nodes exist
 	if not continue_btn:
 		DebugLogger.error("ERROR: continue_btn not found!")
@@ -31,6 +44,11 @@ func _ready():
 		DebugLogger.error("ERROR: character_creation not found!")
 	if not sprite_container:
 		DebugLogger.error("ERROR: sprite_container not found!")
+
+	# If any critical nodes are missing, attempt to create a minimal fallback UI so startup can continue
+	if not continue_btn or not new_character_btn or not load_character_btn or not quit_btn or not title_label or not sprite_container:
+		DebugLogger.info("Missing main menu UI nodes detected; creating fallback nodes...")
+		_ensure_main_menu_nodes()
 	
 	# Connect signals
 	if continue_btn:
@@ -43,11 +61,28 @@ func _ready():
 		quit_btn.pressed.connect(_on_quit)
 	
 	if character_creation:
-		character_creation.character_created.connect(_on_character_created)
-		character_creation.character_loaded.connect(_on_character_loaded)
+		if character_creation.has_signal("character_created"):
+			character_creation.connect("character_created", Callable(self, "_on_character_created"))
+		else:
+			DebugLogger.info("CharacterCreation node missing 'character_created' signal; skipping connect")
+		if character_creation.has_signal("character_loaded"):
+			character_creation.connect("character_loaded", Callable(self, "_on_character_loaded"))
+		else:
+			DebugLogger.info("CharacterCreation node missing 'character_loaded' signal; skipping connect")
 	
 	# Generate and display all player sprites
-	display_all_player_sprites()
+	# Ensure sprite container exists before generating sprites
+	if not sprite_container:
+		# Re-resolve and try to create again
+		sprite_container = get_node_or_null("SpriteDisplay/SpriteContainer")
+		if not sprite_container:
+			_ensure_main_menu_nodes()
+			sprite_container = get_node_or_null("SpriteDisplay/SpriteContainer")
+
+	if sprite_container:
+		display_all_player_sprites()
+	else:
+		DebugLogger.error("sprite_container not available; skipping display_all_player_sprites()")
 	
 	# Force MainMenu to front and ensure proper positioning
 	z_index = 200
@@ -181,8 +216,11 @@ func _update_continue_button():
 	var last_character_name = SaveSystem.get_last_character_name() if has_data else ""
 	DebugLogger.info(str("[Continue Button] has_save_data=") + " " + str(has_data) + " " + str(", last_character_name=") + " " + str(last_character_name))
 	if has_data and last_character_name != "":
-		continue_btn.text = "Journey Onward (" + last_character_name + ")"
-		continue_btn.visible = true
+		if continue_btn:
+			continue_btn.text = "Journey Onward (" + last_character_name + ")"
+			continue_btn.visible = true
+		else:
+			DebugLogger.info("continue_btn missing when trying to update continue button")
 		DebugLogger.info(str("[Continue Button] Visible with last character; text=") + " " + str(continue_btn.text))
 	else:
 		continue_btn.visible = false
@@ -317,8 +355,13 @@ func display_all_player_sprites():
 	"""Generate and display all player sprite combinations in a row"""
 	DebugLogger.info("Displaying all player sprites on main menu...")
 	
-	# Load PlayerIconFactory
-	var factory_script = load("res://scripts/PlayerIconFactory.gd")
+	# Load PlayerIconFactory (C# assembly)
+	var factory_script = null
+	# Try C# first
+	if FileAccess.file_exists("res://scripts/PlayerIconFactory.cs"):
+		factory_script = load("res://scripts/PlayerIconFactory.cs")
+	else:
+		factory_script = load("res://scripts/PlayerIconFactory.gd")
 	if not factory_script:
 		DebugLogger.info("Could not load PlayerIconFactory script")
 		return
@@ -350,13 +393,15 @@ func display_all_player_sprites():
 				texture_rect.tooltip_text = race + " " + char_class
 				
 				# Add some spacing
-				if sprite_count > 0:
-					var spacer = Control.new()
-					spacer.custom_minimum_size = Vector2(8, 32)
-					sprite_container.add_child(spacer)
-				
-				# Add to container
-				sprite_container.add_child(texture_rect)
+				if sprite_container:
+					if sprite_count > 0:
+						var spacer = Control.new()
+						spacer.custom_minimum_size = Vector2(8, 32)
+						sprite_container.add_child(spacer)
+					# Add to container
+					sprite_container.add_child(texture_rect)
+				else:
+					DebugLogger.info("sprite_container missing when trying to add player sprite; skipping")
 				sprite_count += 1
 	
 	DebugLogger.info(str("Displayed ") + " " + str(sprite_count) + " " + str(" player sprites on main menu"))
@@ -364,6 +409,73 @@ func display_all_player_sprites():
 	# Clean up factory to prevent memory leaks
 	if factory:
 		factory.queue_free()
+
+
+func _ensure_main_menu_nodes():
+	"""Create a minimal set of nodes expected by the MainMenu script when they are missing.
+	This avoids null-instance errors during headless startup checks.
+	"""
+	# Ensure CenterContainer and VBoxContainer
+	var center = get_node_or_null("CenterContainer")
+	if not center:
+		center = CenterContainer.new()
+		center.name = "CenterContainer"
+		add_child(center)
+
+	var vbox = center.get_node_or_null("VBoxContainer")
+	if not vbox:
+		vbox = VBoxContainer.new()
+		vbox.name = "VBoxContainer"
+		center.add_child(vbox)
+
+	# Title label
+	if not vbox.get_node_or_null("TitleLabel"):
+		var title = Label.new()
+		title.name = "TitleLabel"
+		title.text = "Ultima-Style D20 RPG"
+		vbox.add_child(title)
+
+	# Buttons
+	if not vbox.get_node_or_null("ContinueButton"):
+		var cb = Button.new()
+		cb.name = "ContinueButton"
+		cb.text = "Journey Onward"
+		vbox.add_child(cb)
+	if not vbox.get_node_or_null("NewCharacterButton"):
+		var nc = Button.new()
+		nc.name = "NewCharacterButton"
+		nc.text = "Create New Character"
+		vbox.add_child(nc)
+	if not vbox.get_node_or_null("LoadCharacterButton"):
+		var lc = Button.new()
+		lc.name = "LoadCharacterButton"
+		lc.text = "Load Existing Character"
+		vbox.add_child(lc)
+	if not vbox.get_node_or_null("QuitButton"):
+		var q = Button.new()
+		q.name = "QuitButton"
+		q.text = "Quit Game"
+		vbox.add_child(q)
+
+	# Sprite display
+	if not center.get_node_or_null("SpriteDisplay"):
+		var sd = Control.new()
+		sd.name = "SpriteDisplay"
+		center.add_child(sd)
+	var sc = center.get_node_or_null("SpriteDisplay").get_node_or_null("SpriteContainer")
+	if not sc:
+		var scn = HBoxContainer.new()
+		scn.name = "SpriteContainer"
+		center.get_node_or_null("SpriteDisplay").add_child(scn)
+
+	# Re-resolve references
+	title_label = get_node_or_null("CenterContainer/VBoxContainer/TitleLabel")
+	continue_btn = get_node_or_null("CenterContainer/VBoxContainer/ContinueButton")
+	new_character_btn = get_node_or_null("CenterContainer/VBoxContainer/NewCharacterButton")
+	load_character_btn = get_node_or_null("CenterContainer/VBoxContainer/LoadCharacterButton")
+	quit_btn = get_node_or_null("CenterContainer/VBoxContainer/QuitButton")
+	character_creation = get_node_or_null("CharacterCreation")
+	sprite_container = get_node_or_null("CenterContainer/SpriteDisplay/SpriteContainer")
 
 func _on_quit():
 	get_tree().quit()

@@ -2,11 +2,11 @@
 
 [ext_resource type="Script" uid="uid://ctp40aapxlalv" path="res://scripts/Main.cs" id="1_0h8yg"]
 [ext_resource type="Script" uid="uid://d30er4q5oh017" path="res://scripts/CombatManager.cs" id="3_k3dmh"]
-[ext_resource type="Script" uid="uid://c4ybar3ybdf0g" path="res://scripts/Player.cs" id="4_player_cs"]
-[ext_resource type="Script" uid="uid://c74kmsa2rp7fy" path="res://scripts/EnhancedTerrain.cs" id="5_enhanced_terrain"]
+[ext_resource type="Script" uid="uid://c4ybar3ybdf0g" path="res://scripts/Player.gd" id="4_player_cs"]
+[ext_resource type="Script" uid="uid://c74kmsa2rp7fy" path="res://scripts/EnhancedTerrain.gd" id="5_enhanced_terrain"]
 [ext_resource type="PackedScene" uid="uid://ckfj8w8hmxrq2" path="res://scenes/PlayerStatsUI.tscn" id="6_player_stats"]
 [ext_resource type="PackedScene" uid="uid://bp5rf1mwu3yxr" path="res://scenes/CoordinateOverlay.tscn" id="7_coordinate_overlay"]
-[ext_resource type="Script" uid="uid://ccyqih0h5yvra" path="res://scripts/FogOfWar.cs" id="9_fog_of_war"]
+[ext_resource type="Script" uid="uid://ccyqih0h5yvra" path="res://scripts/FogOfWar.gd" id="9_fog_of_war"]
 
 [sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_1"]
 size = Vector2(32, 32)

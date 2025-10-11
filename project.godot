@@ -19,7 +19,7 @@ config/icon="res://icon.svg"
 [autoload]
 
 DebugLogger="*res://scripts/DebugLogger.cs"
-SaveSystem="*res://scripts/SaveSystem.tscn"
+SaveSystem="*res://scripts/SaveSystem.gd"
 
 [display]
 

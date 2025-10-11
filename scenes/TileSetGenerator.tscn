@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://c8h9m4k5l6n7o8"]
 
-[ext_resource type="Script" path="res://scripts/TileSetGenerator.cs" id="1_tileset_gen"]
+[ext_resource type="Script" path="res://scripts/TileSetGenerator.gd" id="1_tileset_gen"]
 
 [node name="TileSetGenerator" type="Node"]
 script = ExtResource("1_tileset_gen")

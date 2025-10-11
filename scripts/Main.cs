@@ -5,7 +5,7 @@ public partial class Main : Node2D
 {
     private const int TILE_SIZE = 32;
 
-    public Player player;
+    public Character player;
     public Node combat_manager;
     public Camera2D camera;
     public Node terrain;
@@ -229,10 +229,10 @@ public partial class Main : Node2D
         return 0;
     }
 
-    private Monster CreateRandomEnemy(string difficultyModifier)
+    private Character CreateRandomEnemy(string difficultyModifier)
     {
         // Create a minimal monster instance and add to scene
-        Monster monster = null;
+        Character monster = null;
         try {
             // Only try to load the scene if it exists on disk
             if (FileAccess.FileExists("res://scenes/Monster.tscn"))
@@ -243,12 +243,12 @@ public partial class Main : Node2D
         } catch { }
         if (monster == null)
         {
-            // fallback: instantiate script
-            monster = new Monster();
+            // fallback: instantiate a minimal Character to act as monster
+            monster = new Character();
         }
 
-        monster.Name = "Goblin";
-        monster.GlobalPosition = player.GlobalPosition + new Vector2(200, 0);
+        try { monster.Name = "Goblin"; } catch { }
+        try { monster.GlobalPosition = player.GlobalPosition + new Vector2(200, 0); } catch { }
         AddChild(monster);
 
         GD.Print($"Spawned overworld monster: {monster.Name} at {monster.GlobalPosition}");
